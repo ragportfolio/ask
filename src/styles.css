@@ -1,25 +1,52 @@
 .torency-ask {
   --torency-ask-bg: #ffffff;
-  --torency-ask-border: #d8dee8;
-  --torency-ask-muted: #667085;
-  --torency-ask-text: #1f2937;
-  --torency-ask-user-bg: #111827;
+  --torency-ask-border: #d1d5db;
+  --torency-ask-muted: #6b7280;
+  --torency-ask-text: #111827;
+  --torency-ask-user-bg: #374151;
   --torency-ask-user-text: #ffffff;
-  --torency-ask-assistant-bg: #f4f7fb;
-  --torency-ask-accent: #2563eb;
+  --torency-ask-assistant-bg: #f3f4f6;
+  --torency-ask-input-bg: #ffffff;
+  --torency-ask-accent: #4b5563;
+  --torency-ask-accent-text: #ffffff;
+  --torency-ask-focus-ring: rgba(75, 85, 99, 0.18);
   --torency-ask-error: #b42318;
   --torency-ask-warning-bg: #fff7ed;
   --torency-ask-warning-text: #9a3412;
+  --torency-ask-radius: 8px;
+  --torency-ask-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   background: var(--torency-ask-bg);
   border: 1px solid var(--torency-ask-border);
-  border-radius: 10px;
+  border-radius: var(--torency-ask-radius);
+  box-shadow: var(--torency-ask-shadow);
   color: var(--torency-ask-text);
   display: grid;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: inherit;
   gap: 12px;
+  margin-inline: auto;
   max-width: 760px;
   min-height: 420px;
   padding: 14px;
+  transition: background-color 200ms, border-color 200ms, color 200ms;
+  width: 100%;
+}
+
+.dark .torency-ask:not([data-theme="light"]),
+.torency-ask[data-theme="dark"] {
+  --torency-ask-bg: rgba(31, 41, 55, 0.3);
+  --torency-ask-border: #374151;
+  --torency-ask-muted: #9ca3af;
+  --torency-ask-text: #ffffff;
+  --torency-ask-user-bg: #4b5563;
+  --torency-ask-user-text: #ffffff;
+  --torency-ask-assistant-bg: rgba(31, 41, 55, 0.75);
+  --torency-ask-input-bg: #1f2937;
+  --torency-ask-accent: #6b7280;
+  --torency-ask-accent-text: #ffffff;
+  --torency-ask-focus-ring: rgba(156, 163, 175, 0.2);
+  --torency-ask-error: #fca5a5;
+  --torency-ask-warning-bg: rgba(154, 52, 18, 0.22);
+  --torency-ask-warning-text: #fdba74;
 }
 
 .torency-ask *,
@@ -57,7 +84,7 @@
 }
 
 .torency-ask__bubble {
-  border-radius: 10px;
+  border-radius: var(--torency-ask-radius);
   font-size: 0.95rem;
   line-height: 1.55;
   max-width: min(92%, 680px);
@@ -118,7 +145,7 @@
 .torency-ask__warning {
   background: var(--torency-ask-warning-bg);
   border: 1px solid rgba(154, 52, 18, 0.25);
-  border-radius: 8px;
+  border-radius: var(--torency-ask-radius);
   color: var(--torency-ask-warning-text);
   font-size: 0.86rem;
   margin-bottom: 10px;
@@ -160,7 +187,7 @@
 .torency-ask__turnstile {
   align-items: center;
   border: 1px solid var(--torency-ask-border);
-  border-radius: 8px;
+  border-radius: var(--torency-ask-radius);
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -168,8 +195,9 @@
   padding: 10px;
 }
 
-.torency-ask__turnstile--verified {
-  border-color: rgba(37, 99, 235, 0.35);
+.torency-ask__turnstile--verified,
+.torency-ask__turnstile[hidden] {
+  display: none !important;
 }
 
 .torency-ask__turnstile-label {
@@ -187,9 +215,9 @@
 }
 
 .torency-ask__input {
-  background: #ffffff;
+  background: var(--torency-ask-input-bg);
   border: 1px solid var(--torency-ask-border);
-  border-radius: 10px;
+  border-radius: var(--torency-ask-radius);
   color: var(--torency-ask-text);
   font: inherit;
   line-height: 1.45;
@@ -202,7 +230,7 @@
 
 .torency-ask__input:focus {
   border-color: var(--torency-ask-accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  box-shadow: 0 0 0 3px var(--torency-ask-focus-ring);
   outline: none;
 }
 
@@ -210,8 +238,8 @@
   align-items: center;
   background: var(--torency-ask-accent);
   border: 0;
-  border-radius: 10px;
-  color: #ffffff;
+  border-radius: var(--torency-ask-radius);
+  color: var(--torency-ask-accent-text);
   cursor: pointer;
   display: inline-flex;
   height: 44px;
@@ -237,7 +265,6 @@
 
 @media (max-width: 640px) {
   .torency-ask {
-    border-radius: 0;
     min-height: 100%;
   }
 

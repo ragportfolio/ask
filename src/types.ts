@@ -74,6 +74,7 @@ export interface AskWidgetProps {
   backendUrl: string;
   className?: string;
   fetchAppConfig?: boolean;
+  id?: string;
   initialQuestion?: string;
   inputClassName?: string;
   inputStyle?: CSSProperties;
@@ -84,7 +85,9 @@ export interface AskWidgetProps {
   showCitations?: boolean;
   showStaleWarnings?: boolean;
   sourceId?: string;
+  style?: CSSProperties;
   targetId?: string;
+  theme?: "dark" | "light";
   topK?: number;
   turnstileAction?: string;
   turnstileSiteKey?: string | null;

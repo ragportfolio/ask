@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { askQuestion, fetchAppConfig } from "./client";
 import type { AskResult, AskTurn, AskWidgetProps, Citation } from "./types";
@@ -9,6 +9,7 @@ export function AskWidget({
   backendUrl,
   className,
   fetchAppConfig: shouldFetchAppConfig = true,
+  id,
   initialQuestion = "",
   inputClassName,
   inputStyle,
@@ -19,7 +20,9 @@ export function AskWidget({
   showCitations = false,
   showStaleWarnings = true,
   sourceId,
+  style,
   targetId,
+  theme,
   topK,
   turnstileAction,
   turnstileSiteKey
@@ -33,6 +36,8 @@ export function AskWidget({
   const [resolvedTurnstileAction, setResolvedTurnstileAction] = useState(turnstileAction ?? "ask");
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const generatedId = useId();
+  const widgetId = useMemo(() => id?.trim() || `torency-ask-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [generatedId, id]);
 
   const adminBypassEnabled = Boolean(adminToken?.trim());
 
@@ -137,50 +142,62 @@ export function AskWidget({
   }
 
   return (
-    <section className={rootClassName}>
-      {labels?.title ? <header className="torency-ask__header">{labels.title}</header> : null}
+    <section id={widgetId} className={rootClassName} data-theme={theme} style={style}>
+      {labels?.title ? <header id={`${widgetId}-header`} className="torency-ask__header">{labels.title}</header> : null}
 
-      <div className="torency-ask__thread" ref={threadRef}>
+      <div id={`${widgetId}-thread`} className="torency-ask__thread" ref={threadRef}>
         {turns.length === 0 ? (
-          <div className="torency-ask__empty">{labels?.empty ?? "Ask a question to get started."}</div>
+          <div id={`${widgetId}-empty`} className="torency-ask__empty">{labels?.empty ?? "Ask a question to get started."}</div>
         ) : null}
 
-        {turns.map((turn) => (
-          <article key={turn.id} className="torency-ask__exchange">
-            <div className="torency-ask__bubble torency-ask__bubble--user">{turn.question}</div>
-            {turn.result === null && !turn.error ? (
-              <div className="torency-ask__bubble torency-ask__bubble--assistant torency-ask__bubble--loading">
-                <span className="torency-ask__dots"><span /><span /><span /></span>
-              </div>
-            ) : turn.error ? (
-              <p className="torency-ask__error">{turn.error}</p>
-            ) : turn.result ? (
-              <AnswerBubble result={turn.result} showCitations={showCitations} showStaleWarnings={showStaleWarnings} />
-            ) : null}
-          </article>
-        ))}
+        {turns.map((turn, turnIndex) => {
+          const turnId = `${widgetId}-turn-${turnIndex + 1}`;
+          return (
+            <article id={turnId} key={turn.id} className="torency-ask__exchange">
+              <div id={`${turnId}-question`} className="torency-ask__bubble torency-ask__bubble--user">{turn.question}</div>
+              {turn.result === null && !turn.error ? (
+                <div id={`${turnId}-loading`} className="torency-ask__bubble torency-ask__bubble--assistant torency-ask__bubble--loading">
+                  <span id={`${turnId}-loading-dots`} className="torency-ask__dots">
+                    <span id={`${turnId}-loading-dot-1`} />
+                    <span id={`${turnId}-loading-dot-2`} />
+                    <span id={`${turnId}-loading-dot-3`} />
+                  </span>
+                </div>
+              ) : turn.error ? (
+                <p id={`${turnId}-error`} className="torency-ask__error">{turn.error}</p>
+              ) : turn.result ? (
+                <AnswerBubble idPrefix={turnId} result={turn.result} showCitations={showCitations} showStaleWarnings={showStaleWarnings} />
+              ) : null}
+            </article>
+          );
+        })}
       </div>
 
-      <div className="torency-ask__composer">
+      <div id={`${widgetId}-composer`} className="torency-ask__composer">
         {!adminBypassEnabled ? (
-          <div className={`torency-ask__turnstile${turnstile.token ? " torency-ask__turnstile--verified" : ""}`}>
-            <div className="torency-ask__turnstile-label">{labels?.turnstileLabel ?? "Turnstile"}</div>
-            {configError ? <p className="torency-ask__error">{configError}</p> : null}
+          <div
+            id={`${widgetId}-turnstile`}
+            className={`torency-ask__turnstile${turnstile.token ? " torency-ask__turnstile--verified" : ""}`}
+            hidden={Boolean(turnstile.token)}
+          >
+            <div id={`${widgetId}-turnstile-label`} className="torency-ask__turnstile-label">{labels?.turnstileLabel ?? "Turnstile"}</div>
+            {configError ? <p id={`${widgetId}-config-error`} className="torency-ask__error">{configError}</p> : null}
             {resolvedTurnstileSiteKey ? (
-              <div className="torency-ask__turnstile-widget">
-                <div ref={turnstile.containerRef} />
-                {turnstile.error ? <p className="torency-ask__error">{turnstile.error}</p> : null}
+              <div id={`${widgetId}-turnstile-widget`} className="torency-ask__turnstile-widget">
+                <div id={`${widgetId}-turnstile-container`} ref={turnstile.containerRef} />
+                {turnstile.error ? <p id={`${widgetId}-turnstile-error`} className="torency-ask__error">{turnstile.error}</p> : null}
               </div>
             ) : !configError ? (
-              <p className="torency-ask__error">Turnstile is not configured.</p>
+              <p id={`${widgetId}-turnstile-missing`} className="torency-ask__error">Turnstile is not configured.</p>
             ) : null}
           </div>
         ) : null}
 
-        {formError ? <p className="torency-ask__error">{formError}</p> : null}
+        {formError ? <p id={`${widgetId}-form-error`} className="torency-ask__error">{formError}</p> : null}
 
-        <form className="torency-ask__form" onSubmit={handleSubmit}>
+        <form id={`${widgetId}-form`} className="torency-ask__form" onSubmit={handleSubmit}>
           <textarea
+            id={`${widgetId}-input`}
             ref={textareaRef}
             className={["torency-ask__input", inputClassName].filter(Boolean).join(" ")}
             style={inputStyle}
@@ -195,10 +212,10 @@ export function AskWidget({
             placeholder={labels?.inputPlaceholder ?? "Ask a question"}
             rows={1}
           />
-          <button type="submit" className="torency-ask__send" disabled={!canSubmit} aria-label={labels?.sendLabel ?? "Send"}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 19V5" />
-              <path d="M5 12l7-7 7 7" />
+          <button id={`${widgetId}-send`} type="submit" className="torency-ask__send" disabled={!canSubmit} aria-label={labels?.sendLabel ?? "Send"}>
+            <svg id={`${widgetId}-send-icon`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path id={`${widgetId}-send-icon-shaft`} d="M12 19V5" />
+              <path id={`${widgetId}-send-icon-head`} d="M5 12l7-7 7 7" />
             </svg>
           </button>
         </form>
@@ -207,22 +224,22 @@ export function AskWidget({
   );
 }
 
-function AnswerBubble({result, showCitations, showStaleWarnings}: {result: AskResult; showCitations: boolean; showStaleWarnings: boolean}) {
+function AnswerBubble({idPrefix, result, showCitations, showStaleWarnings}: {idPrefix: string; result: AskResult; showCitations: boolean; showStaleWarnings: boolean}) {
   return (
-    <div className="torency-ask__bubble torency-ask__bubble--assistant">
+    <div id={`${idPrefix}-response`} className="torency-ask__bubble torency-ask__bubble--assistant">
       {showStaleWarnings && result.staleRepos.length > 0 ? (
-        <div className="torency-ask__warning">
+        <div id={`${idPrefix}-warning`} className="torency-ask__warning">
           Code embeddings may be outdated for {result.staleRepos.map((repo) => repo.name).join(", ")}.
         </div>
       ) : null}
-      <div className="torency-ask__answer">{renderAnswerMarkdown(result.answer)}</div>
+      <div id={`${idPrefix}-answer`} className="torency-ask__answer">{renderAnswerMarkdown(result.answer, `${idPrefix}-answer`)}</div>
       {showCitations && result.citations.length > 0 ? (
-        <details className="torency-ask__citations">
-          <summary>Citations <span>{result.citations.length}</span></summary>
-          <ul>
-            {result.citations.map((citation) => (
-              <li key={citationKey(citation)}>
-                <code>{citation.path}:{citation.startLine}-{citation.endLine}</code>
+        <details id={`${idPrefix}-citations`} className="torency-ask__citations">
+          <summary id={`${idPrefix}-citations-summary`}>Citations <span id={`${idPrefix}-citations-count`}>{result.citations.length}</span></summary>
+          <ul id={`${idPrefix}-citations-list`}>
+            {result.citations.map((citation, citationIndex) => (
+              <li id={`${idPrefix}-citation-${citationIndex + 1}`} key={citationKey(citation)}>
+                <code id={`${idPrefix}-citation-${citationIndex + 1}-code`}>{citation.path}:{citation.startLine}-{citation.endLine}</code>
               </li>
             ))}
           </ul>
@@ -237,22 +254,26 @@ interface AnswerBlock {
   type: "paragraph" | "list";
 }
 
-function renderAnswerMarkdown(answer: string): ReactNode {
+function renderAnswerMarkdown(answer: string, idPrefix: string): ReactNode {
   return parseAnswerBlocks(answer).map((block, blockIndex) => {
+    const blockId = `${idPrefix}-block-${blockIndex + 1}`;
     if (block.type === "list") {
       return (
-        <ul key={`list-${blockIndex}`} className="torency-ask__answer-list">
-          {block.lines.map((line, lineIndex) => <li key={`item-${blockIndex}-${lineIndex}`}>{renderInlineMarkdown(line)}</li>)}
+        <ul id={blockId} key={`list-${blockIndex}`} className="torency-ask__answer-list">
+          {block.lines.map((line, lineIndex) => {
+            const lineId = `${blockId}-item-${lineIndex + 1}`;
+            return <li id={lineId} key={`item-${blockIndex}-${lineIndex}`}>{renderInlineMarkdown(line, lineId)}</li>;
+          })}
         </ul>
       );
     }
 
     return (
-      <p key={`paragraph-${blockIndex}`}>
+      <p id={blockId} key={`paragraph-${blockIndex}`}>
         {block.lines.map((line, lineIndex) => (
-          <span key={`line-${blockIndex}-${lineIndex}`}>
-            {lineIndex > 0 ? <br /> : null}
-            {renderInlineMarkdown(line)}
+          <span id={`${blockId}-line-${lineIndex + 1}`} key={`line-${blockIndex}-${lineIndex}`}>
+            {lineIndex > 0 ? <br id={`${blockId}-break-${lineIndex}`} /> : null}
+            {renderInlineMarkdown(line, `${blockId}-line-${lineIndex + 1}`)}
           </span>
         ))}
       </p>
@@ -293,7 +314,7 @@ function flushAnswerBlock(blocks: AnswerBlock[], lines: string[], type: AnswerBl
   blocks.push({lines, type});
 }
 
-function renderInlineMarkdown(text: string): ReactNode[] {
+function renderInlineMarkdown(text: string, idPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const pattern = /\*\*([^*]+)\*\*/g;
   let lastIndex = 0;
@@ -301,7 +322,7 @@ function renderInlineMarkdown(text: string): ReactNode[] {
 
   while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
-    nodes.push(<strong key={`strong-${match.index}`}>{match[1]}</strong>);
+    nodes.push(<strong id={`${idPrefix}-strong-${match.index}`} key={`strong-${match.index}`}>{match[1]}</strong>);
     lastIndex = match.index + match[0].length;
   }
 
