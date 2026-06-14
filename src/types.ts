@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export interface AppConfigPayload {
   hasAdminAuth: boolean;
@@ -75,6 +75,8 @@ export interface AskWidgetProps {
   className?: string;
   fetchAppConfig?: boolean;
   initialQuestion?: string;
+  inputClassName?: string;
+  inputStyle?: CSSProperties;
   labels?: AskWidgetLabels;
   onError?: (error: Error, question: string) => void;
   onResult?: (result: AskResult) => void;

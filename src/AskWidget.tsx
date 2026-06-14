@@ -10,6 +10,8 @@ export function AskWidget({
   className,
   fetchAppConfig: shouldFetchAppConfig = true,
   initialQuestion = "",
+  inputClassName,
+  inputStyle,
   labels,
   onError,
   onResult,
@@ -180,7 +182,8 @@ export function AskWidget({
         <form className="torency-ask__form" onSubmit={handleSubmit}>
           <textarea
             ref={textareaRef}
-            className="torency-ask__input"
+            className={["torency-ask__input", inputClassName].filter(Boolean).join(" ")}
+            style={inputStyle}
             value={question}
             onChange={handleTextareaChange}
             onKeyDown={(event) => {
