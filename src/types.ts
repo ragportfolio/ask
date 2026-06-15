@@ -76,6 +76,7 @@ export interface AskWidgetProps {
   fetchAppConfig?: boolean;
   id?: string;
   initialQuestion?: string;
+  inputClassName?: string;
   inputStyle?: CSSProperties;
   labels?: AskWidgetLabels;
   onError?: (error: Error, question: string) => void;

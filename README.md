@@ -24,6 +24,11 @@ export function CasciiAsk() {
         title: "Ask about Cascii",
         inputPlaceholder: "Ask how Cascii works"
       }}
+      inputStyle={{
+        background: "#111827",
+        borderColor: "#475569",
+        color: "#ffffff"
+      }}
     />
   );
 }
@@ -35,13 +40,15 @@ export function CasciiAsk() {
 - `id`: optional stable ID prefix for the widget and all of its rendered elements.
 - `sourceId`, `repoId`, `targetId`: optional backend retrieval target.
 - `topK`: optional retrieval size.
-- `turnstileSiteKey`: optional explicit Cloudflare Turnstile site key. If omitted, the widget fetches `/app-config`.
+- `inputClassName`: an additional class applied to the textarea for stylesheet-based customization.
+- `turnstileSiteKey`: optional explicit public Cloudflare Turnstile site key. If omitted, the widget fetches it from `/app-config`.
 - `turnstileAction`: defaults to the action from `/app-config`, then `ask`.
 - `adminToken`: optional admin bypass for private/internal usage.
 - `showCitations`: default `false`.
 - `showStaleWarnings`: default `true`.
 - `labels`: title, placeholder, empty state, send label, Turnstile label.
 - `className`, `style`: customize the widget root.
+- `inputClassName`: add a custom class to the question input.
 - `inputStyle`: apply React inline styles to the question input.
 - `theme`: explicitly select `"light"` or `"dark"`; otherwise the widget follows a `.dark` ancestor.
 - `onResult`: callback after a successful response.
@@ -81,6 +88,17 @@ Override the bundled theme with a class and CSS custom properties:
 The backend or auth worker must allow the embedding site origin in CORS. For `cascii.com`, add that origin to the worker/backend allowlist.
 
 If public users are protected by Turnstile, the Turnstile site key must allow the embedding domain, for example `cascii.com`.
+
+The site key is public and may be passed to the component. Never pass or expose the Turnstile secret key in browser code. The secret key remains on the worker/backend and is used for Siteverify.
+
+```tsx
+<AskWidget
+  backendUrl="https://auth.torency.com"
+  turnstileSiteKey="0x4..."
+/>
+```
+
+Normally, passing `turnstileSiteKey` is unnecessary because the widget loads the public key and expected action from `GET /app-config`.
 
 The widget sends:
 

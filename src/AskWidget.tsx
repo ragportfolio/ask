@@ -11,6 +11,7 @@ export function AskWidget({
   fetchAppConfig: shouldFetchAppConfig = true,
   id,
   initialQuestion = "",
+  inputClassName,
   inputStyle,
   labels,
   onError,
@@ -198,7 +199,8 @@ export function AskWidget({
           <textarea
             id={`${widgetId}-input`}
             ref={textareaRef}
-            className="torency-ask__input"
+            className={["torency-ask__input", inputClassName].filter(Boolean).join(" ")}
+            style={inputStyle}
             value={question}
             onChange={handleTextareaChange}
             onKeyDown={(event) => {
@@ -209,7 +211,6 @@ export function AskWidget({
             }}
             placeholder={labels?.inputPlaceholder ?? "Ask a question"}
             rows={1}
-            style={inputStyle}
           />
           <button id={`${widgetId}-send`} type="submit" className="torency-ask__send" disabled={!canSubmit} aria-label={labels?.sendLabel ?? "Send"}>
             <svg id={`${widgetId}-send-icon`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
