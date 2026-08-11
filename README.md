@@ -3,7 +3,8 @@
 Embeddable React Ask widget for a Ragportfolio portfolio or legacy `memory` backend.
 
 Status on 2026-08-11: portfolio targeting, public transport, citations, and code-controlled visual
-customization are merged. The `@ragportfolio/ask` package rename and pull-request build are local.
+customization are merged. The `@ragportfolio/ask` package rename, pull-request build, and
+portfolio-bound Turnstile/origin transport are local.
 The framework-independent custom element and owner-facing embed builder are planned in
 [`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
 
@@ -72,18 +73,21 @@ anonymous visitors.
   Turnstile label.
 - `className`, `style`: customize the widget root after `appearance` is applied.
 - `inputClassName`, `inputStyle`: backwards-compatible input-only customization.
-- `showCitations`: defaults to `true` for portfolio mode and `false` for legacy mode.
+- `showCitations`: may hide citations client-side. In portfolio mode the owner's server policy is
+  authoritative and a host cannot reveal citations the public response omitted.
 - `theme`: explicitly select `"light"` or `"dark"`; otherwise the widget follows a `.dark`
   ancestor.
 - `onResult`: callback after a successful response.
 - `onError`: callback after a failed response.
+- `turnstileSiteKey`: optional explicit public Cloudflare Turnstile site key. Portfolio mode
+  normally loads the correct key and portfolio-bound proof configuration automatically.
+- `turnstileAction`: optional development/legacy override; portfolio production mode normally uses
+  the server-provided `portfolio_ask` action.
 
 Legacy-only props:
 
 - `sourceId`, `repoId`, `targetId`: optional legacy backend retrieval target.
 - `topK`: optional legacy retrieval size.
-- `turnstileSiteKey`: optional explicit public Cloudflare Turnstile site key. If omitted, the widget fetches it from `/app-config`.
-- `turnstileAction`: defaults to the action from `/app-config`, then `ask`.
 - `adminToken`: optional admin bypass for private/internal usage.
 - `showStaleWarnings`: default `true`.
 
@@ -136,11 +140,16 @@ Supported slot keys are `root`, `header`, `thread`, `empty`, `exchange`, `questi
 
 ### Ragportfolio portfolio mode
 
-The production Worker allows anonymous cross-origin requests only for
-`/api/public/portfolios/...`. It never enables credentialed wildcard CORS and does not permit a
-third-party origin to turn an owner cookie into private portfolio access. The widget sends only the
-question and the slug or unlisted token encoded in the URL; portfolio scope, publication version,
-funding, limits, and retrieval settings remain server-authoritative.
+The production contract allows anonymous browser access only from the Ragportfolio origin or an
+exact website origin that the portfolio owner registered and verified. The Worker echoes that exact
+origin, never `*`, never enables credentials for the embed route, and does not permit a third-party
+origin to turn an owner cookie into private portfolio access.
+
+Portfolio mode first loads `/embed-config`, renders Turnstile with the returned site key, action,
+and portfolio-bound `cData`, then submits the resulting single-use token with the question. The
+Worker verifies the token through Siteverify and checks the exact hostname, action, and `cData`
+before creating query work or spending the portfolio allowance. The widget never receives the
+Turnstile secret.
 
 Public portfolio request:
 
@@ -149,7 +158,7 @@ POST /api/public/portfolios/ragportfolio/ask
 Content-Type: application/json
 X-Transaction-Id: <uuid>
 
-{"question":"What did you build?"}
+{"question":"What did you build?","turnstileToken":"<single-use-token>"}
 ```
 
 The semi-private form is `/api/public/portfolios/by-token/{token}/ask`. Both return:
@@ -163,6 +172,21 @@ The semi-private form is `/api/public/portfolios/by-token/{token}/ask`. Both ret
   }
 }
 ```
+
+Owners configure this locally in the portfolio's **Website Ask** card:
+
+1. Add the exact HTTPS website origin.
+2. Serve the shown value at `/.well-known/ragportfolio-verification.txt` as `text/plain`.
+3. Select **Verify**.
+4. Install the component only after the domain is verified and the operator has provisioned that
+   hostname on the production Turnstile widget.
+
+App verification does not automatically edit Cloudflare's widget hostname list. The current global
+site-key design needs Cloudflare's Enterprise-only Any Hostname mode plus the Worker's exact
+Siteverify hostname check. A standard-plan alternative would need a separate widget-allocation and
+secret-storage design because standard widgets have bounded hostname lists. See the
+[hostname-management limits](https://developers.cloudflare.com/turnstile/additional-configuration/hostname-management/)
+and [Any Hostname contract](https://developers.cloudflare.com/turnstile/additional-configuration/hostname-management/any-hostname/).
 
 ### Legacy mode
 

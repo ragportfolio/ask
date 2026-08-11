@@ -1,9 +1,20 @@
-import type { AppConfigPayload, AskRequestInput, AskResult, Citation } from "./types";
+import type { AppConfigPayload, AskRequestInput, AskResult, Citation, PortfolioEmbedConfig } from "./types";
 
 const MAX_ERROR_MESSAGE_LENGTH = 280;
 
 export async function fetchAppConfig(backendUrl: string): Promise<AppConfigPayload> {
   return requestJson<AppConfigPayload>(backendUrl, "/app-config");
+}
+
+export async function fetchPortfolioEmbedConfig(input: {backendUrl?: string; portfolioSlug?: string; portfolioToken?: string}): Promise<PortfolioEmbedConfig> {
+  const portfolioSlug = input.portfolioSlug?.trim();
+  const portfolioToken = input.portfolioToken?.trim();
+  if (portfolioSlug && portfolioToken) throw new Error("Choose either portfolioSlug or portfolioToken, not both.");
+  const address = portfolioToken ?? portfolioSlug;
+  if (!address) throw new Error("Choose a portfolioSlug or portfolioToken.");
+  const path = portfolioToken ? `/api/public/portfolios/by-token/${encodeURIComponent(address)}/embed-config` : `/api/public/portfolios/${encodeURIComponent(address)}/embed-config`;
+  const payload = await requestJson<{embed: PortfolioEmbedConfig}>(input.backendUrl ?? "https://ragportfolio.com", path);
+  return payload.embed;
 }
 
 export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
@@ -21,6 +32,7 @@ export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
     const address = portfolioToken ?? portfolioSlug;
     if (!address) throw new Error("Choose a portfolioSlug or portfolioToken.");
     const path = portfolioToken ? `/api/public/portfolios/by-token/${encodeURIComponent(address)}/ask` : `/api/public/portfolios/${encodeURIComponent(address)}/ask`;
+    if (input.turnstileToken?.trim()) body.turnstileToken = input.turnstileToken.trim();
     const payload = await requestJson<{answer: {text: string; mode: "extractive" | "llm"; citations: Citation[]}}>(input.backendUrl ?? "https://ragportfolio.com", path, {method: "POST", headers, body: JSON.stringify(body)});
     return {repoId: "", question: input.question, answer: payload.answer.text, citations: payload.answer.citations, hits: [], mode: payload.answer.mode, staleRepos: []};
   }

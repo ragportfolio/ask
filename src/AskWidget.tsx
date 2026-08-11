@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 
-import { askQuestion, fetchAppConfig } from "./client";
+import { askQuestion, fetchAppConfig, fetchPortfolioEmbedConfig } from "./client";
 import type { AskResult, AskTurn, AskWidgetAppearance, AskWidgetClassNames, AskWidgetProps, AskWidgetStyles, Citation } from "./types";
 import { useTurnstile } from "./useTurnstile";
 
@@ -32,6 +32,7 @@ export function AskWidget({
   turnstileAction,
   turnstileSiteKey
 }: AskWidgetProps) {
+  const portfolioMode = Boolean(portfolioSlug?.trim() || portfolioToken?.trim());
   const [question, setQuestion] = useState(initialQuestion);
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,16 +40,49 @@ export function AskWidget({
   const [configError, setConfigError] = useState<string | null>(null);
   const [resolvedTurnstileSiteKey, setResolvedTurnstileSiteKey] = useState<string | null>(turnstileSiteKey ?? null);
   const [resolvedTurnstileAction, setResolvedTurnstileAction] = useState(turnstileAction ?? "ask");
+  const [resolvedTurnstileCData, setResolvedTurnstileCData] = useState<string | undefined>();
+  const [portfolioCitationsVisible, setPortfolioCitationsVisible] = useState(true);
+  const [isPortfolioConfigLoading, setIsPortfolioConfigLoading] = useState(portfolioMode);
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generatedId = useId();
   const widgetId = useMemo(() => id?.trim() || `ragportfolio-ask-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [generatedId, id]);
 
-  const portfolioMode = Boolean(portfolioSlug?.trim() || portfolioToken?.trim());
   const resolvedBackendUrl = backendUrl ?? "https://ragportfolio.com";
   const adminBypassEnabled = !portfolioMode && Boolean(adminToken?.trim());
-  const challengeRequired = !portfolioMode && !adminBypassEnabled;
-  const citationsVisible = showCitations ?? portfolioMode;
+  const challengeRequired = !adminBypassEnabled;
+  const citationsVisible = showCitations ?? (portfolioMode ? portfolioCitationsVisible : false);
+
+  useEffect(() => {
+    if (!portfolioMode) {
+      setIsPortfolioConfigLoading(false);
+      return;
+    }
+    let isCancelled = false;
+    setIsPortfolioConfigLoading(true);
+    setConfigError(null);
+    setResolvedTurnstileCData(undefined);
+    if (turnstileSiteKey === undefined) setResolvedTurnstileSiteKey(null);
+    fetchPortfolioEmbedConfig({backendUrl: resolvedBackendUrl, portfolioSlug, portfolioToken})
+      .then((config) => {
+        if (isCancelled) return;
+        if (turnstileSiteKey === undefined) setResolvedTurnstileSiteKey(config.turnstileSiteKey);
+        setResolvedTurnstileAction(turnstileAction ?? config.turnstileAction);
+        setResolvedTurnstileCData(config.turnstileCData);
+        setPortfolioCitationsVisible(config.showCitations);
+        setConfigError(null);
+        setIsPortfolioConfigLoading(false);
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setConfigError(error instanceof Error ? error.message : String(error));
+          setIsPortfolioConfigLoading(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [portfolioMode, portfolioSlug, portfolioToken, resolvedBackendUrl, turnstileAction, turnstileSiteKey]);
 
   useEffect(() => {
     if (turnstileSiteKey !== undefined) {
@@ -63,7 +97,7 @@ export function AskWidget({
   }, [turnstileAction]);
 
   useEffect(() => {
-    if (!shouldFetchAppConfig || turnstileSiteKey !== undefined || !challengeRequired) {
+    if (portfolioMode || !shouldFetchAppConfig || turnstileSiteKey !== undefined || !challengeRequired) {
       return;
     }
 
@@ -82,9 +116,9 @@ export function AskWidget({
     return () => {
       isCancelled = true;
     };
-  }, [challengeRequired, resolvedBackendUrl, shouldFetchAppConfig, turnstileAction, turnstileSiteKey]);
+  }, [challengeRequired, portfolioMode, resolvedBackendUrl, shouldFetchAppConfig, turnstileAction, turnstileSiteKey]);
 
-  const turnstile = useTurnstile(challengeRequired ? resolvedTurnstileSiteKey : null, resolvedTurnstileAction);
+  const turnstile = useTurnstile(challengeRequired ? resolvedTurnstileSiteKey : null, resolvedTurnstileAction, resolvedTurnstileCData);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -198,6 +232,8 @@ export function AskWidget({
                 <div id={`${widgetId}-turnstile-container`} ref={turnstile.containerRef} />
                 {turnstile.error ? <p id={`${widgetId}-turnstile-error`} className={slotClass("ragportfolio-ask__error", classNames?.error)} style={styles?.error}>{turnstile.error}</p> : null}
               </div>
+            ) : isPortfolioConfigLoading ? (
+              <p id={`${widgetId}-turnstile-loading`} className="ragportfolio-ask__turnstile-label">Loading verification…</p>
             ) : !configError ? (
               <p id={`${widgetId}-turnstile-missing`} className={slotClass("ragportfolio-ask__error", classNames?.error)} style={styles?.error}>Turnstile is not configured.</p>
             ) : null}
