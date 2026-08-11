@@ -1,6 +1,6 @@
 import "./styles.css";
 
-export { AskWidget } from "./AskWidget";
+export { AskWidget, AskWidget as RagportfolioAsk } from "./AskWidget";
 export { askQuestion, fetchAppConfig } from "./client";
 export type {
   AppConfigPayload,
@@ -11,6 +11,7 @@ export type {
   AskWidgetClassNames,
   AskWidgetLabels,
   AskWidgetProps,
+  AskWidgetProps as RagportfolioAskProps,
   AskWidgetSlot,
   AskWidgetStyles,
   Citation,
