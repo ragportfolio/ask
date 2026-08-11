@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {afterEach, test} from "node:test";
 
-import {askQuestion} from "../dist/torency-ask-widget.js";
+import {askQuestion} from "../dist/ragportfolio-ask.js";
 
 const originalFetch = globalThis.fetch;
 

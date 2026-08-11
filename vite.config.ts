@@ -9,8 +9,8 @@ export default defineConfig({
     emptyOutDir: false,
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
-      name: "TorencyAskWidget",
-      fileName: "torency-ask-widget",
+      name: "RagportfolioAsk",
+      fileName: "ragportfolio-ask",
       formats: ["es", "umd"]
     },
     rollupOptions: {

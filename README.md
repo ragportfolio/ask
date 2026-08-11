@@ -1,26 +1,27 @@
-# @torency/ask-widget
+# @ragportfolio/ask
 
 Embeddable React Ask widget for a Ragportfolio portfolio or legacy `memory` backend.
 
 Status on 2026-08-11: portfolio targeting, public transport, citations, and code-controlled visual
-customization are implemented locally. The framework-independent custom element and owner-facing
-embed builder are planned in [`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
+customization are merged. The `@ragportfolio/ask` package rename and pull-request build are local.
+The framework-independent custom element and owner-facing embed builder are planned in
+[`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
 
 ## Install
 
 ```bash
-npm install @torency/ask-widget
+npm install @ragportfolio/ask
 ```
 
 ## Ask a public portfolio
 
 ```tsx
-import { AskWidget } from "@torency/ask-widget";
-import "@torency/ask-widget/styles.css";
+import { RagportfolioAsk } from "@ragportfolio/ask";
+import "@ragportfolio/ask/styles.css";
 
 export function PortfolioAsk() {
   return (
-    <AskWidget
+    <RagportfolioAsk
       portfolioSlug="ragportfolio"
       className="portfolio-ask"
       labels={{
@@ -41,12 +42,15 @@ export function PortfolioAsk() {
 `backendUrl` defaults to `https://ragportfolio.com` in portfolio mode and can be overridden for a
 local or preview environment.
 
+`AskWidget` remains an exported compatibility alias for existing React integrations. New code
+should use `RagportfolioAsk`; its props type is exported as `RagportfolioAskProps`.
+
 ## Ask a semi-private portfolio
 
 Use the unlisted share token, not the portfolio slug:
 
 ```tsx
-<AskWidget portfolioToken="00000000-0000-0000-0000-000000000000" />
+<RagportfolioAsk portfolioToken="00000000-0000-0000-0000-000000000000" />
 ```
 
 The token is included in browser source and network requests. Treat it as an observable share link,
@@ -93,22 +97,22 @@ Override the bundled theme with a class and CSS custom properties:
 
 ```css
 .portfolio-ask {
-  --torency-ask-bg: #ffffff;
-  --torency-ask-border: #d1d5db;
-  --torency-ask-text: #111827;
-  --torency-ask-muted: #6b7280;
-  --torency-ask-user-bg: #374151;
-  --torency-ask-user-text: #ffffff;
-  --torency-ask-assistant-bg: #f3f4f6;
-  --torency-ask-input-bg: #ffffff;
-  --torency-ask-accent: #4b5563;
-  --torency-ask-accent-text: #ffffff;
-  --torency-ask-focus-ring: rgb(75 85 99 / 0.18);
-  --torency-ask-error: #b42318;
-  --torency-ask-warning-bg: #fff7ed;
-  --torency-ask-warning-text: #9a3412;
-  --torency-ask-radius: 8px;
-  --torency-ask-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --ragportfolio-ask-bg: #ffffff;
+  --ragportfolio-ask-border: #d1d5db;
+  --ragportfolio-ask-text: #111827;
+  --ragportfolio-ask-muted: #6b7280;
+  --ragportfolio-ask-user-bg: #374151;
+  --ragportfolio-ask-user-text: #ffffff;
+  --ragportfolio-ask-assistant-bg: #f3f4f6;
+  --ragportfolio-ask-input-bg: #ffffff;
+  --ragportfolio-ask-accent: #4b5563;
+  --ragportfolio-ask-accent-text: #ffffff;
+  --ragportfolio-ask-focus-ring: rgb(75 85 99 / 0.18);
+  --ragportfolio-ask-error: #b42318;
+  --ragportfolio-ask-warning-bg: #fff7ed;
+  --ragportfolio-ask-warning-text: #9a3412;
+  --ragportfolio-ask-radius: 8px;
+  --ragportfolio-ask-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 ```
 
@@ -116,7 +120,7 @@ The `appearance` prop is the typed equivalent for the main design tokens. Use `c
 `styles` when an individual semantic slot needs a different treatment:
 
 ```tsx
-<AskWidget
+<RagportfolioAsk
   portfolioSlug="ragportfolio"
   appearance={{background: "transparent", maxWidth: "100%", shadow: "none"}}
   classNames={{composer: "my-composer", response: "my-answer"}}
@@ -126,7 +130,7 @@ The `appearance` prop is the typed equivalent for the main design tokens. Use `c
 
 Supported slot keys are `root`, `header`, `thread`, `empty`, `exchange`, `question`, `loading`,
 `response`, `warning`, `answer`, `citations`, `composer`, `turnstile`, `error`, `form`, `input`, and
-`send`. Bundled `torency-ask` BEM class names remain stable for stylesheet overrides.
+`send`. Bundled `ragportfolio-ask` BEM class names remain stable for stylesheet overrides.
 
 ## Backend Requirements
 
