@@ -1,4 +1,4 @@
-import type { AppConfigPayload, AskRequestInput, AskResult } from "./types";
+import type { AppConfigPayload, AskRequestInput, AskResult, Citation } from "./types";
 
 const MAX_ERROR_MESSAGE_LENGTH = 280;
 
@@ -14,6 +14,17 @@ export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
     question: input.question
   };
 
+  const portfolioSlug = input.portfolioSlug?.trim();
+  const portfolioToken = input.portfolioToken?.trim();
+  if (portfolioSlug && portfolioToken) throw new Error("Choose either portfolioSlug or portfolioToken, not both.");
+  if (portfolioSlug || portfolioToken) {
+    const address = portfolioToken ?? portfolioSlug;
+    if (!address) throw new Error("Choose a portfolioSlug or portfolioToken.");
+    const path = portfolioToken ? `/api/public/portfolios/by-token/${encodeURIComponent(address)}/ask` : `/api/public/portfolios/${encodeURIComponent(address)}/ask`;
+    const payload = await requestJson<{answer: {text: string; mode: "extractive" | "llm"; citations: Citation[]}}>(input.backendUrl ?? "https://ragportfolio.com", path, {method: "POST", headers, body: JSON.stringify(body)});
+    return {repoId: "", question: input.question, answer: payload.answer.text, citations: payload.answer.citations, hits: [], mode: payload.answer.mode, staleRepos: []};
+  }
+
   if (input.sourceId) body.sourceId = input.sourceId;
   if (input.repoId) {
     body.repoId = input.repoId;
@@ -28,13 +39,18 @@ export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
     body.turnstileToken = input.turnstileToken.trim();
   }
 
-  const payload = await requestJson<{result: AskResult}>(input.backendUrl, "/ask", {
+  const payload = await requestJson<{result: AskResult}>(requiredLegacyBackendUrl(input.backendUrl), "/ask", {
     method: "POST",
     headers,
     body: JSON.stringify(body)
   });
 
   return payload.result;
+}
+
+function requiredLegacyBackendUrl(value: string | undefined): string {
+  if (!value?.trim()) throw new Error("AskWidget requires backendUrl in legacy mode or a portfolioSlug/portfolioToken for Ragportfolio mode.");
+  return value;
 }
 
 async function requestJson<T>(backendUrl: string, path: string, init: RequestInit = {}): Promise<T> {
@@ -79,6 +95,8 @@ function normalizeErrorMessage(payload: unknown, status: number): string {
     const error = (payload as {error?: unknown}).error;
     if (typeof error === "string" && error.trim()) {
       message = error.trim();
+    } else if (error && typeof error === "object" && "message" in error && typeof (error as {message?: unknown}).message === "string" && (error as {message: string}).message.trim()) {
+      message = (error as {message: string}).message.trim();
     }
   } else if (typeof payload === "string" && payload.trim()) {
     message = payload.trim();

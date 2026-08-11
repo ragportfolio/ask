@@ -21,12 +21,13 @@
   box-shadow: var(--torency-ask-shadow);
   color: var(--torency-ask-text);
   display: grid;
-  font-family: inherit;
-  gap: 12px;
+  font-family: var(--torency-ask-font-family, inherit);
+  font-size: var(--torency-ask-font-size, 1rem);
+  gap: var(--torency-ask-gap, 12px);
   margin-inline: auto;
-  max-width: 760px;
-  min-height: 420px;
-  padding: 14px;
+  max-width: var(--torency-ask-max-width, 760px);
+  min-height: var(--torency-ask-min-height, 420px);
+  padding: var(--torency-ask-padding, 14px);
   transition: background-color 200ms, border-color 200ms, color 200ms;
   width: 100%;
 }
@@ -66,8 +67,8 @@
   align-content: start;
   display: grid;
   gap: 14px;
-  max-height: min(58vh, 620px);
-  min-height: 240px;
+  max-height: var(--torency-ask-thread-max-height, min(58vh, 620px));
+  min-height: var(--torency-ask-thread-min-height, 240px);
   overflow: auto;
   padding: 2px;
 }
@@ -87,8 +88,8 @@
   border-radius: var(--torency-ask-radius);
   font-size: 0.95rem;
   line-height: 1.55;
-  max-width: min(92%, 680px);
-  padding: 12px 14px;
+  max-width: var(--torency-ask-bubble-max-width, min(92%, 680px));
+  padding: var(--torency-ask-bubble-padding, 12px 14px);
 }
 
 .torency-ask__bubble--user {
@@ -180,7 +181,7 @@
 .torency-ask__composer {
   border-top: 1px solid var(--torency-ask-border);
   display: grid;
-  gap: 10px;
+  gap: var(--torency-ask-composer-gap, 10px);
   padding-top: 12px;
 }
 
@@ -221,8 +222,8 @@
   color: var(--torency-ask-text);
   font: inherit;
   line-height: 1.45;
-  max-height: 160px;
-  min-height: 44px;
+  max-height: var(--torency-ask-input-max-height, 160px);
+  min-height: var(--torency-ask-input-min-height, 44px);
   padding: 11px 12px;
   resize: none;
   width: 100%;
@@ -242,9 +243,9 @@
   color: var(--torency-ask-accent-text);
   cursor: pointer;
   display: inline-flex;
-  height: 44px;
+  height: var(--torency-ask-send-size, 44px);
   justify-content: center;
-  width: 44px;
+  width: var(--torency-ask-send-size, 44px);
 }
 
 .torency-ask__send:disabled {

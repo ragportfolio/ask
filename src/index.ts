@@ -7,8 +7,12 @@ export type {
   AskRequestInput,
   AskResult,
   AskTurn,
+  AskWidgetAppearance,
+  AskWidgetClassNames,
   AskWidgetLabels,
   AskWidgetProps,
+  AskWidgetSlot,
+  AskWidgetStyles,
   Citation,
   SearchHit,
   StaleRepoWarning
