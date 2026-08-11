@@ -9,6 +9,7 @@ declare global {
         options: {
           action?: string;
           callback: (token: string) => void;
+          cData?: string;
           "error-callback"?: (errorCode?: string | number) => void;
           "expired-callback"?: () => void;
           sitekey: string;
@@ -24,7 +25,7 @@ declare global {
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 let turnstileScriptPromise: Promise<void> | null = null;
 
-export function useTurnstile(siteKey: string | null, action: string) {
+export function useTurnstile(siteKey: string | null, action: string, cData?: string) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export function useTurnstile(siteKey: string | null, action: string) {
             setToken(nextToken);
             setError(null);
           },
+          cData,
           "error-callback": (errorCode?: string | number) => {
             setToken(null);
             const normalizedCode = typeof errorCode === "string" || typeof errorCode === "number" ? String(errorCode) : null;
@@ -86,7 +88,7 @@ export function useTurnstile(siteKey: string | null, action: string) {
       }
       container.innerHTML = "";
     };
-  }, [action, renderNonce, siteKey]);
+  }, [action, cData, renderNonce, siteKey]);
 
   return {
     containerRef,

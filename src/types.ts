@@ -6,6 +6,13 @@ export interface AppConfigPayload {
   turnstileSiteKey: string | null;
 }
 
+export interface PortfolioEmbedConfig {
+  showCitations: boolean;
+  turnstileAction: string;
+  turnstileCData: string;
+  turnstileSiteKey: string | null;
+}
+
 export interface Citation {
   path: string;
   startLine: number;
