@@ -1,6 +1,10 @@
 # @torency/ask-widget
 
-Embeddable React Ask widget for an Archeo / `memory` backend.
+Embeddable React Ask widget for a Ragportfolio portfolio or legacy `memory` backend.
+
+Status on 2026-08-11: portfolio targeting, public transport, citations, and code-controlled visual
+customization are implemented locally. The framework-independent custom element and owner-facing
+embed builder are planned in [`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
 
 ## Install
 
@@ -8,51 +12,76 @@ Embeddable React Ask widget for an Archeo / `memory` backend.
 npm install @torency/ask-widget
 ```
 
-## Use
+## Ask a public portfolio
 
 ```tsx
 import { AskWidget } from "@torency/ask-widget";
 import "@torency/ask-widget/styles.css";
 
-export function CasciiAsk() {
+export function PortfolioAsk() {
   return (
     <AskWidget
-      backendUrl="https://chat.hjoncour.com"
-      sourceId="project:cascii"
+      portfolioSlug="ragportfolio"
       className="portfolio-ask"
       labels={{
-        title: "Ask about Cascii",
-        inputPlaceholder: "Ask how Cascii works"
+        title: "Ask about my work",
+        inputPlaceholder: "What would you like to know?"
       }}
-      inputStyle={{
-        background: "#111827",
-        borderColor: "#475569",
-        color: "#ffffff"
+      appearance={{
+        accentColor: "#f59e0b",
+        borderRadius: "12px",
+        fontFamily: "ui-monospace, monospace",
+        maxWidth: "680px"
       }}
     />
   );
 }
 ```
 
+`backendUrl` defaults to `https://ragportfolio.com` in portfolio mode and can be overridden for a
+local or preview environment.
+
+## Ask a semi-private portfolio
+
+Use the unlisted share token, not the portfolio slug:
+
+```tsx
+<AskWidget portfolioToken="00000000-0000-0000-0000-000000000000" />
+```
+
+The token is included in browser source and network requests. Treat it as an observable share link,
+not as an authentication credential. Private and unpublished portfolios cannot be embedded for
+anonymous visitors.
+
 ## Props
 
-- `backendUrl`: origin that exposes `/app-config` and `/ask`.
+- `portfolioSlug`: public portfolio address. Mutually exclusive with `portfolioToken`.
+- `portfolioToken`: semi-private share token. Mutually exclusive with `portfolioSlug`.
+- `backendUrl`: optional Ragportfolio API origin; defaults to `https://ragportfolio.com` in
+  portfolio mode. Required for the legacy `/app-config` and `/ask` mode.
 - `id`: optional stable ID prefix for the widget and all of its rendered elements.
-- `sourceId`, `repoId`, `targetId`: optional backend retrieval target.
-- `topK`: optional retrieval size.
-- `inputClassName`: an additional class applied to the textarea for stylesheet-based customization.
+- `appearance`: typed high-level design tokens for colors, typography, dimensions, border, radius,
+  spacing, and shadow.
+- `classNames`: additional class names keyed by semantic slot.
+- `styles`: React inline styles keyed by semantic slot.
+- `labels`: title, placeholder, empty state, loading content, citations label, send label, and legacy
+  Turnstile label.
+- `className`, `style`: customize the widget root after `appearance` is applied.
+- `inputClassName`, `inputStyle`: backwards-compatible input-only customization.
+- `showCitations`: defaults to `true` for portfolio mode and `false` for legacy mode.
+- `theme`: explicitly select `"light"` or `"dark"`; otherwise the widget follows a `.dark`
+  ancestor.
+- `onResult`: callback after a successful response.
+- `onError`: callback after a failed response.
+
+Legacy-only props:
+
+- `sourceId`, `repoId`, `targetId`: optional legacy backend retrieval target.
+- `topK`: optional legacy retrieval size.
 - `turnstileSiteKey`: optional explicit public Cloudflare Turnstile site key. If omitted, the widget fetches it from `/app-config`.
 - `turnstileAction`: defaults to the action from `/app-config`, then `ask`.
 - `adminToken`: optional admin bypass for private/internal usage.
-- `showCitations`: default `false`.
 - `showStaleWarnings`: default `true`.
-- `labels`: title, placeholder, empty state, send label, Turnstile label.
-- `className`, `style`: customize the widget root.
-- `inputClassName`: add a custom class to the question input.
-- `inputStyle`: apply React inline styles to the question input.
-- `theme`: explicitly select `"light"` or `"dark"`; otherwise the widget follows a `.dark` ancestor.
-- `onResult`: callback after a successful response.
-- `onError`: callback after a failed response.
 
 ## Styling
 
@@ -83,7 +112,55 @@ Override the bundled theme with a class and CSS custom properties:
 }
 ```
 
+The `appearance` prop is the typed equivalent for the main design tokens. Use `classNames` and
+`styles` when an individual semantic slot needs a different treatment:
+
+```tsx
+<AskWidget
+  portfolioSlug="ragportfolio"
+  appearance={{background: "transparent", maxWidth: "100%", shadow: "none"}}
+  classNames={{composer: "my-composer", response: "my-answer"}}
+  styles={{send: {borderRadius: 999}, thread: {maxHeight: 480}}}
+/>
+```
+
+Supported slot keys are `root`, `header`, `thread`, `empty`, `exchange`, `question`, `loading`,
+`response`, `warning`, `answer`, `citations`, `composer`, `turnstile`, `error`, `form`, `input`, and
+`send`. Bundled `torency-ask` BEM class names remain stable for stylesheet overrides.
+
 ## Backend Requirements
+
+### Ragportfolio portfolio mode
+
+The production Worker allows anonymous cross-origin requests only for
+`/api/public/portfolios/...`. It never enables credentialed wildcard CORS and does not permit a
+third-party origin to turn an owner cookie into private portfolio access. The widget sends only the
+question and the slug or unlisted token encoded in the URL; portfolio scope, publication version,
+funding, limits, and retrieval settings remain server-authoritative.
+
+Public portfolio request:
+
+```http
+POST /api/public/portfolios/ragportfolio/ask
+Content-Type: application/json
+X-Transaction-Id: <uuid>
+
+{"question":"What did you build?"}
+```
+
+The semi-private form is `/api/public/portfolios/by-token/{token}/ask`. Both return:
+
+```json
+{
+  "answer": {
+    "text": "...",
+    "mode": "llm",
+    "citations": [{"path": "README.md", "startLine": 10, "endLine": 18}]
+  }
+}
+```
+
+### Legacy mode
 
 The backend or auth worker must allow the embedding site origin in CORS. For `cascii.com`, add that origin to the worker/backend allowlist.
 

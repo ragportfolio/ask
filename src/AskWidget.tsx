@@ -1,13 +1,15 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 
 import { askQuestion, fetchAppConfig } from "./client";
-import type { AskResult, AskTurn, AskWidgetProps, Citation } from "./types";
+import type { AskResult, AskTurn, AskWidgetAppearance, AskWidgetClassNames, AskWidgetProps, AskWidgetStyles, Citation } from "./types";
 import { useTurnstile } from "./useTurnstile";
 
 export function AskWidget({
   adminToken,
+  appearance,
   backendUrl,
   className,
+  classNames,
   fetchAppConfig: shouldFetchAppConfig = true,
   id,
   initialQuestion = "",
@@ -16,11 +18,14 @@ export function AskWidget({
   labels,
   onError,
   onResult,
+  portfolioSlug,
+  portfolioToken,
   repoId,
-  showCitations = false,
+  showCitations,
   showStaleWarnings = true,
   sourceId,
   style,
+  styles,
   targetId,
   theme,
   topK,
@@ -39,7 +44,11 @@ export function AskWidget({
   const generatedId = useId();
   const widgetId = useMemo(() => id?.trim() || `torency-ask-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [generatedId, id]);
 
-  const adminBypassEnabled = Boolean(adminToken?.trim());
+  const portfolioMode = Boolean(portfolioSlug?.trim() || portfolioToken?.trim());
+  const resolvedBackendUrl = backendUrl ?? "https://ragportfolio.com";
+  const adminBypassEnabled = !portfolioMode && Boolean(adminToken?.trim());
+  const challengeRequired = !portfolioMode && !adminBypassEnabled;
+  const citationsVisible = showCitations ?? portfolioMode;
 
   useEffect(() => {
     if (turnstileSiteKey !== undefined) {
@@ -54,12 +63,12 @@ export function AskWidget({
   }, [turnstileAction]);
 
   useEffect(() => {
-    if (!shouldFetchAppConfig || turnstileSiteKey !== undefined || adminBypassEnabled) {
+    if (!shouldFetchAppConfig || turnstileSiteKey !== undefined || !challengeRequired) {
       return;
     }
 
     let isCancelled = false;
-    fetchAppConfig(backendUrl)
+    fetchAppConfig(resolvedBackendUrl)
       .then((config) => {
         if (isCancelled) return;
         setResolvedTurnstileSiteKey(config.turnstileSiteKey);
@@ -73,9 +82,9 @@ export function AskWidget({
     return () => {
       isCancelled = true;
     };
-  }, [adminBypassEnabled, backendUrl, shouldFetchAppConfig, turnstileAction, turnstileSiteKey]);
+  }, [challengeRequired, resolvedBackendUrl, shouldFetchAppConfig, turnstileAction, turnstileSiteKey]);
 
-  const turnstile = useTurnstile(adminBypassEnabled ? null : resolvedTurnstileSiteKey, resolvedTurnstileAction);
+  const turnstile = useTurnstile(challengeRequired ? resolvedTurnstileSiteKey : null, resolvedTurnstileAction);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -88,11 +97,10 @@ export function AskWidget({
     }
   }, [question]);
 
-  const rootClassName = useMemo(() => {
-    return ["torency-ask", className].filter(Boolean).join(" ");
-  }, [className]);
+  const rootClassName = useMemo(() => slotClass("torency-ask", classNames?.root, className), [className, classNames?.root]);
+  const rootStyle = useMemo(() => ({...appearanceStyle(appearance), ...styles?.root, ...style}), [appearance, style, styles?.root]);
 
-  const canSubmit = !isSubmitting && question.trim().length > 0 && (adminBypassEnabled || Boolean(turnstile.token));
+  const canSubmit = !isSubmitting && question.trim().length > 0 && (!challengeRequired || Boolean(turnstile.token));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,7 +108,7 @@ export function AskWidget({
 
     const normalizedQuestion = question.trim();
     if (!normalizedQuestion) return;
-    if (!adminBypassEnabled && !turnstile.token) {
+    if (challengeRequired && !turnstile.token) {
       setFormError("Complete the Turnstile challenge before asking a question.");
       return;
     }
@@ -113,7 +121,9 @@ export function AskWidget({
     try {
       const result = await askQuestion({
         adminToken,
-        backendUrl,
+        backendUrl: resolvedBackendUrl,
+        portfolioSlug,
+        portfolioToken,
         question: normalizedQuestion,
         repoId,
         sourceId,
@@ -123,12 +133,12 @@ export function AskWidget({
       });
       setTurns((prev) => prev.map((turn) => turn.id === id ? {...turn, result} : turn));
       onResult?.(result);
-      if (!adminBypassEnabled) turnstile.reset();
+      if (challengeRequired) turnstile.reset();
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
       setTurns((prev) => prev.map((turn) => turn.id === id ? {...turn, error: normalized.message} : turn));
       onError?.(normalized, normalizedQuestion);
-      if (!adminBypassEnabled) turnstile.reset();
+      if (challengeRequired) turnstile.reset();
     } finally {
       setIsSubmitting(false);
     }
@@ -142,65 +152,66 @@ export function AskWidget({
   }
 
   return (
-    <section id={widgetId} className={rootClassName} data-theme={theme} style={style}>
-      {labels?.title ? <header id={`${widgetId}-header`} className="torency-ask__header">{labels.title}</header> : null}
+    <section id={widgetId} className={rootClassName} data-theme={theme} style={rootStyle}>
+      {labels?.title ? <header id={`${widgetId}-header`} className={slotClass("torency-ask__header", classNames?.header)} style={styles?.header}>{labels.title}</header> : null}
 
-      <div id={`${widgetId}-thread`} className="torency-ask__thread" ref={threadRef}>
+      <div id={`${widgetId}-thread`} className={slotClass("torency-ask__thread", classNames?.thread)} style={styles?.thread} ref={threadRef}>
         {turns.length === 0 ? (
-          <div id={`${widgetId}-empty`} className="torency-ask__empty">{labels?.empty ?? "Ask a question to get started."}</div>
+          <div id={`${widgetId}-empty`} className={slotClass("torency-ask__empty", classNames?.empty)} style={styles?.empty}>{labels?.empty ?? "Ask a question to get started."}</div>
         ) : null}
 
         {turns.map((turn, turnIndex) => {
           const turnId = `${widgetId}-turn-${turnIndex + 1}`;
           return (
-            <article id={turnId} key={turn.id} className="torency-ask__exchange">
-              <div id={`${turnId}-question`} className="torency-ask__bubble torency-ask__bubble--user">{turn.question}</div>
+            <article id={turnId} key={turn.id} className={slotClass("torency-ask__exchange", classNames?.exchange)} style={styles?.exchange}>
+              <div id={`${turnId}-question`} className={slotClass("torency-ask__bubble torency-ask__bubble--user", classNames?.question)} style={styles?.question}>{turn.question}</div>
               {turn.result === null && !turn.error ? (
-                <div id={`${turnId}-loading`} className="torency-ask__bubble torency-ask__bubble--assistant torency-ask__bubble--loading">
-                  <span id={`${turnId}-loading-dots`} className="torency-ask__dots">
+                <div id={`${turnId}-loading`} className={slotClass("torency-ask__bubble torency-ask__bubble--assistant torency-ask__bubble--loading", classNames?.loading)} style={styles?.loading}>
+                  {labels?.loading ?? <span id={`${turnId}-loading-dots`} className="torency-ask__dots">
                     <span id={`${turnId}-loading-dot-1`} />
                     <span id={`${turnId}-loading-dot-2`} />
                     <span id={`${turnId}-loading-dot-3`} />
-                  </span>
+                  </span>}
                 </div>
               ) : turn.error ? (
-                <p id={`${turnId}-error`} className="torency-ask__error">{turn.error}</p>
+                <p id={`${turnId}-error`} className={slotClass("torency-ask__error", classNames?.error)} style={styles?.error}>{turn.error}</p>
               ) : turn.result ? (
-                <AnswerBubble idPrefix={turnId} result={turn.result} showCitations={showCitations} showStaleWarnings={showStaleWarnings} />
+                <AnswerBubble classNames={classNames} idPrefix={turnId} labels={labels} result={turn.result} showCitations={citationsVisible} showStaleWarnings={showStaleWarnings} styles={styles} />
               ) : null}
             </article>
           );
         })}
       </div>
 
-      <div id={`${widgetId}-composer`} className="torency-ask__composer">
-        {!adminBypassEnabled ? (
+      <div id={`${widgetId}-composer`} className={slotClass("torency-ask__composer", classNames?.composer)} style={styles?.composer}>
+        {challengeRequired ? (
           <div
             id={`${widgetId}-turnstile`}
-            className={`torency-ask__turnstile${turnstile.token ? " torency-ask__turnstile--verified" : ""}`}
+            className={slotClass(`torency-ask__turnstile${turnstile.token ? " torency-ask__turnstile--verified" : ""}`, classNames?.turnstile)}
+            style={styles?.turnstile}
             hidden={Boolean(turnstile.token)}
           >
             <div id={`${widgetId}-turnstile-label`} className="torency-ask__turnstile-label">{labels?.turnstileLabel ?? "Turnstile"}</div>
-            {configError ? <p id={`${widgetId}-config-error`} className="torency-ask__error">{configError}</p> : null}
+            {configError ? <p id={`${widgetId}-config-error`} className={slotClass("torency-ask__error", classNames?.error)} style={styles?.error}>{configError}</p> : null}
             {resolvedTurnstileSiteKey ? (
               <div id={`${widgetId}-turnstile-widget`} className="torency-ask__turnstile-widget">
                 <div id={`${widgetId}-turnstile-container`} ref={turnstile.containerRef} />
-                {turnstile.error ? <p id={`${widgetId}-turnstile-error`} className="torency-ask__error">{turnstile.error}</p> : null}
+                {turnstile.error ? <p id={`${widgetId}-turnstile-error`} className={slotClass("torency-ask__error", classNames?.error)} style={styles?.error}>{turnstile.error}</p> : null}
               </div>
             ) : !configError ? (
-              <p id={`${widgetId}-turnstile-missing`} className="torency-ask__error">Turnstile is not configured.</p>
+              <p id={`${widgetId}-turnstile-missing`} className={slotClass("torency-ask__error", classNames?.error)} style={styles?.error}>Turnstile is not configured.</p>
             ) : null}
           </div>
         ) : null}
 
-        {formError ? <p id={`${widgetId}-form-error`} className="torency-ask__error">{formError}</p> : null}
+        {formError ? <p id={`${widgetId}-form-error`} className={slotClass("torency-ask__error", classNames?.error)} style={styles?.error}>{formError}</p> : null}
 
-        <form id={`${widgetId}-form`} className="torency-ask__form" onSubmit={handleSubmit}>
+        <form id={`${widgetId}-form`} className={slotClass("torency-ask__form", classNames?.form)} style={styles?.form} onSubmit={handleSubmit}>
           <textarea
             id={`${widgetId}-input`}
             ref={textareaRef}
-            className={["torency-ask__input", inputClassName].filter(Boolean).join(" ")}
-            style={inputStyle}
+            className={slotClass("torency-ask__input", classNames?.input, inputClassName)}
+            style={{...styles?.input, ...inputStyle}}
             value={question}
             onChange={handleTextareaChange}
             onKeyDown={(event) => {
@@ -212,7 +223,7 @@ export function AskWidget({
             placeholder={labels?.inputPlaceholder ?? "Ask a question"}
             rows={1}
           />
-          <button id={`${widgetId}-send`} type="submit" className="torency-ask__send" disabled={!canSubmit} aria-label={labels?.sendLabel ?? "Send"}>
+          <button id={`${widgetId}-send`} type="submit" className={slotClass("torency-ask__send", classNames?.send)} style={styles?.send} disabled={!canSubmit} aria-label={labels?.sendLabel ?? "Send"}>
             <svg id={`${widgetId}-send-icon`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path id={`${widgetId}-send-icon-shaft`} d="M12 19V5" />
               <path id={`${widgetId}-send-icon-head`} d="M5 12l7-7 7 7" />
@@ -224,18 +235,18 @@ export function AskWidget({
   );
 }
 
-function AnswerBubble({idPrefix, result, showCitations, showStaleWarnings}: {idPrefix: string; result: AskResult; showCitations: boolean; showStaleWarnings: boolean}) {
+function AnswerBubble({classNames, idPrefix, labels, result, showCitations, showStaleWarnings, styles}: {classNames?: AskWidgetClassNames; idPrefix: string; labels?: AskWidgetProps["labels"]; result: AskResult; showCitations: boolean; showStaleWarnings: boolean; styles?: AskWidgetStyles}) {
   return (
-    <div id={`${idPrefix}-response`} className="torency-ask__bubble torency-ask__bubble--assistant">
+    <div id={`${idPrefix}-response`} className={slotClass("torency-ask__bubble torency-ask__bubble--assistant", classNames?.response)} style={styles?.response}>
       {showStaleWarnings && result.staleRepos.length > 0 ? (
-        <div id={`${idPrefix}-warning`} className="torency-ask__warning">
+        <div id={`${idPrefix}-warning`} className={slotClass("torency-ask__warning", classNames?.warning)} style={styles?.warning}>
           Code embeddings may be outdated for {result.staleRepos.map((repo) => repo.name).join(", ")}.
         </div>
       ) : null}
-      <div id={`${idPrefix}-answer`} className="torency-ask__answer">{renderAnswerMarkdown(result.answer, `${idPrefix}-answer`)}</div>
+      <div id={`${idPrefix}-answer`} className={slotClass("torency-ask__answer", classNames?.answer)} style={styles?.answer}>{renderAnswerMarkdown(result.answer, `${idPrefix}-answer`)}</div>
       {showCitations && result.citations.length > 0 ? (
-        <details id={`${idPrefix}-citations`} className="torency-ask__citations">
-          <summary id={`${idPrefix}-citations-summary`}>Citations <span id={`${idPrefix}-citations-count`}>{result.citations.length}</span></summary>
+        <details id={`${idPrefix}-citations`} className={slotClass("torency-ask__citations", classNames?.citations)} style={styles?.citations}>
+          <summary id={`${idPrefix}-citations-summary`}>{labels?.citations ?? "Citations"} <span id={`${idPrefix}-citations-count`}>{result.citations.length}</span></summary>
           <ul id={`${idPrefix}-citations-list`}>
             {result.citations.map((citation, citationIndex) => (
               <li id={`${idPrefix}-citation-${citationIndex + 1}`} key={citationKey(citation)}>
@@ -343,4 +354,45 @@ function createTurnId(): string {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function slotClass(...values: Array<string | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
+type AskWidgetVariableStyle = CSSProperties & {[name: `--torency-ask-${string}`]: string | undefined};
+
+function appearanceStyle(appearance?: AskWidgetAppearance): AskWidgetVariableStyle {
+  return {
+    "--torency-ask-accent": appearance?.accentColor,
+    "--torency-ask-accent-text": appearance?.accentTextColor,
+    "--torency-ask-assistant-bg": appearance?.assistantBackground,
+    "--torency-ask-bg": appearance?.background,
+    "--torency-ask-border": appearance?.borderColor,
+    "--torency-ask-bubble-max-width": appearance?.bubbleMaxWidth,
+    "--torency-ask-bubble-padding": appearance?.bubblePadding,
+    "--torency-ask-composer-gap": appearance?.composerGap,
+    "--torency-ask-error": appearance?.errorColor,
+    "--torency-ask-focus-ring": appearance?.focusRing,
+    "--torency-ask-font-family": appearance?.fontFamily,
+    "--torency-ask-font-size": appearance?.fontSize,
+    "--torency-ask-gap": appearance?.gap,
+    "--torency-ask-input-bg": appearance?.inputBackground,
+    "--torency-ask-input-max-height": appearance?.inputMaxHeight,
+    "--torency-ask-input-min-height": appearance?.inputMinHeight,
+    "--torency-ask-max-width": appearance?.maxWidth,
+    "--torency-ask-min-height": appearance?.minHeight,
+    "--torency-ask-muted": appearance?.mutedColor,
+    "--torency-ask-padding": appearance?.padding,
+    "--torency-ask-radius": appearance?.borderRadius,
+    "--torency-ask-shadow": appearance?.shadow,
+    "--torency-ask-send-size": appearance?.sendButtonSize,
+    "--torency-ask-text": appearance?.textColor,
+    "--torency-ask-thread-max-height": appearance?.threadMaxHeight,
+    "--torency-ask-thread-min-height": appearance?.threadMinHeight,
+    "--torency-ask-user-bg": appearance?.userBackground,
+    "--torency-ask-user-text": appearance?.userTextColor,
+    "--torency-ask-warning-bg": appearance?.warningBackground,
+    "--torency-ask-warning-text": appearance?.warningTextColor
+  };
 }
