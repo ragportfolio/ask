@@ -1,6 +1,6 @@
 {
   "name": "@ragportfolio/ask",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Embeddable React Ask widget for ragportfolio/memory backends.",
   "type": "module",
   "main": "./dist/ragportfolio-ask.umd.cjs",
@@ -16,14 +16,19 @@
       "import": "./dist/ragportfolio-ask.js",
       "require": "./dist/ragportfolio-ask.umd.cjs"
     },
-    "./styles.css": "./dist/ragportfolio-ask.css"
+    "./styles.css": "./dist/ragportfolio-ask.css",
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/ragportfolio-ask-server.js",
+      "require": "./dist/ragportfolio-ask-server.cjs"
+    }
   },
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', {recursive: true, force: true})\"",
-    "build": "npm run clean && tsc -p tsconfig.json && vite build",
+    "build": "npm run clean && tsc -p tsconfig.json && vite build && vite build --config vite.server.config.ts",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test test/*.test.mjs",
     "prepack": "npm run build",

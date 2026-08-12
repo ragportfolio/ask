@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 
-import { askQuestion, fetchAppConfig, fetchPortfolioEmbedConfig } from "./client";
+import { askQuestion, askWithTransport, fetchAppConfig, fetchPortfolioEmbedConfig } from "./client";
+import { resolveTransport } from "./transport";
 import type { AskResult, AskTurn, AskWidgetAppearance, AskWidgetClassNames, AskWidgetProps, AskWidgetStyles, Citation } from "./types";
 import { useTurnstile } from "./useTurnstile";
 
@@ -20,6 +21,7 @@ export function AskWidget({
   onResult,
   portfolioSlug,
   portfolioToken,
+  transport,
   repoId,
   showCitations,
   showStaleWarnings = true,
@@ -32,7 +34,23 @@ export function AskWidget({
   turnstileAction,
   turnstileSiteKey
 }: AskWidgetProps) {
-  const portfolioMode = Boolean(portfolioSlug?.trim() || portfolioToken?.trim());
+  /*
+   * Transport resolution can fail on misconfiguration (both addresses, a credential header, a
+   * cross-origin endpoint without opt-in). That is a developer error, so it surfaces as a config
+   * error in the widget rather than throwing during render and blanking the host page.
+   */
+  const resolvedTransport = useMemo(() => {
+    try {
+      return {value: resolveTransport({transport, backendUrl, portfolioSlug, portfolioToken}), error: null as string | null};
+    } catch (error) {
+      return {value: null, error: error instanceof Error ? error.message : String(error)};
+    }
+  }, [backendUrl, portfolioSlug, portfolioToken, transport]);
+  const activeTransport = resolvedTransport.value;
+  const proxyMode = activeTransport?.mode === "proxy";
+  // Proxy mode never loads embed config and never renders a challenge: the embedding site's backend
+  // is the authenticated party, so there is nothing for a visitor to prove here.
+  const portfolioMode = activeTransport?.mode === "direct";
   const [question, setQuestion] = useState(initialQuestion);
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,16 +60,22 @@ export function AskWidget({
   const [resolvedTurnstileAction, setResolvedTurnstileAction] = useState(turnstileAction ?? "ask");
   const [resolvedTurnstileCData, setResolvedTurnstileCData] = useState<string | undefined>();
   const [portfolioCitationsVisible, setPortfolioCitationsVisible] = useState(true);
-  const [isPortfolioConfigLoading, setIsPortfolioConfigLoading] = useState(portfolioMode);
+  const [isPortfolioConfigLoading, setIsPortfolioConfigLoading] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generatedId = useId();
   const widgetId = useMemo(() => id?.trim() || `ragportfolio-ask-${generatedId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [generatedId, id]);
 
   const resolvedBackendUrl = backendUrl ?? "https://ragportfolio.com";
-  const adminBypassEnabled = !portfolioMode && Boolean(adminToken?.trim());
-  const challengeRequired = !adminBypassEnabled;
-  const citationsVisible = showCitations ?? (portfolioMode ? portfolioCitationsVisible : false);
+  const adminBypassEnabled = !portfolioMode && !proxyMode && Boolean(adminToken?.trim());
+  const challengeRequired = !adminBypassEnabled && !proxyMode;
+  // A proxy forwards Ragportfolio's answer, which already honors the portfolio's citation policy, so
+  // citations render unless the site turns them off.
+  const citationsVisible = showCitations ?? (portfolioMode ? portfolioCitationsVisible : proxyMode);
+
+  useEffect(() => {
+    if (resolvedTransport.error) setConfigError(resolvedTransport.error);
+  }, [resolvedTransport.error]);
 
   useEffect(() => {
     if (!portfolioMode) {
@@ -63,7 +87,8 @@ export function AskWidget({
     setConfigError(null);
     setResolvedTurnstileCData(undefined);
     if (turnstileSiteKey === undefined) setResolvedTurnstileSiteKey(null);
-    fetchPortfolioEmbedConfig({backendUrl: resolvedBackendUrl, portfolioSlug, portfolioToken})
+    const address = activeTransport?.mode === "direct" ? activeTransport.address : null;
+    fetchPortfolioEmbedConfig({backendUrl: activeTransport?.mode === "direct" ? activeTransport.backendUrl : resolvedBackendUrl, portfolioSlug: address?.kind === "slug" ? address.value : undefined, portfolioToken: address?.kind === "token" ? address.value : undefined})
       .then((config) => {
         if (isCancelled) return;
         if (turnstileSiteKey === undefined) setResolvedTurnstileSiteKey(config.turnstileSiteKey);
@@ -82,7 +107,7 @@ export function AskWidget({
     return () => {
       isCancelled = true;
     };
-  }, [portfolioMode, portfolioSlug, portfolioToken, resolvedBackendUrl, turnstileAction, turnstileSiteKey]);
+  }, [activeTransport, portfolioMode, resolvedBackendUrl, turnstileAction, turnstileSiteKey]);
 
   useEffect(() => {
     if (turnstileSiteKey !== undefined) {
@@ -153,18 +178,18 @@ export function AskWidget({
     setIsSubmitting(true);
 
     try {
-      const result = await askQuestion({
-        adminToken,
-        backendUrl: resolvedBackendUrl,
-        portfolioSlug,
-        portfolioToken,
-        question: normalizedQuestion,
-        repoId,
-        sourceId,
-        targetId,
-        topK,
-        turnstileToken: adminBypassEnabled ? undefined : turnstile.token ?? undefined
-      });
+      const result = activeTransport
+        ? await askWithTransport(activeTransport, {question: normalizedQuestion, turnstileToken: challengeRequired ? turnstile.token ?? undefined : undefined})
+        : await askQuestion({
+          adminToken,
+          backendUrl: resolvedBackendUrl,
+          question: normalizedQuestion,
+          repoId,
+          sourceId,
+          targetId,
+          topK,
+          turnstileToken: adminBypassEnabled ? undefined : turnstile.token ?? undefined
+        });
       setTurns((prev) => prev.map((turn) => turn.id === id ? {...turn, result} : turn));
       onResult?.(result);
       if (challengeRequired) turnstile.reset();

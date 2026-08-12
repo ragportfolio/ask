@@ -57,6 +57,25 @@ export interface AskTurn {
   error: string | null;
 }
 
+/**
+ * How the widget reaches a portfolio.
+ *
+ * `direct` is the default and needs no backend from the embedding site: the browser calls
+ * Ragportfolio and proves itself with a portfolio-bound Turnstile token. `proxy` is for sites that
+ * already run a backend and would rather hold an API token there and apply their own bot defense.
+ *
+ * There is deliberately no way to supply a Ragportfolio API token here. It is a server credential,
+ * and anything reachable from this type is reachable from the page source.
+ */
+export type AskTransport =
+  | {mode: "direct"; portfolioSlug: string; portfolioToken?: never; backendUrl?: string}
+  | {mode: "direct"; portfolioToken: string; portfolioSlug?: never; backendUrl?: string}
+  | {mode: "proxy"; endpoint: string; headers?: Record<string, string>; allowAbsoluteEndpoint?: boolean};
+
+export type ResolvedTransport =
+  | {mode: "direct"; address: {kind: "slug" | "token"; value: string}; backendUrl: string}
+  | {mode: "proxy"; endpoint: string; headers?: Record<string, string>};
+
 export interface AskRequestInput {
   adminToken?: string;
   backendUrl?: string;
@@ -120,6 +139,8 @@ export interface AskWidgetAppearance {
 
 export interface AskWidgetProps {
   adminToken?: string;
+  /** Explicit transport. Mutually exclusive with the portfolioSlug/portfolioToken shorthand. */
+  transport?: AskTransport;
   appearance?: AskWidgetAppearance;
   backendUrl?: string;
   className?: string;

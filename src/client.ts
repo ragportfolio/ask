@@ -1,4 +1,5 @@
-import type { AppConfigPayload, AskRequestInput, AskResult, Citation, PortfolioEmbedConfig } from "./types";
+import { portfolioPath, resolveTransport } from "./transport";
+import type { AppConfigPayload, AskRequestInput, AskResult, AskTransport, Citation, PortfolioEmbedConfig, ResolvedTransport } from "./types";
 
 const MAX_ERROR_MESSAGE_LENGTH = 280;
 
@@ -17,7 +18,57 @@ export async function fetchPortfolioEmbedConfig(input: {backendUrl?: string; por
   return payload.embed;
 }
 
-export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
+interface PublicAnswerPayload {
+  answer: {text: string; mode: "extractive" | "llm"; citations: Citation[]};
+}
+
+/**
+ * Normalizes a Ragportfolio public answer into the widget's result shape. Both transports go through
+ * this, so a proxy that forwards Ragportfolio's response verbatim renders identically to a direct
+ * call, and a proxy that returns something else fails here rather than reaching the UI.
+ */
+function adaptPublicAnswer(payload: unknown, question: string): AskResult {
+  const answer = (payload as PublicAnswerPayload | null)?.answer;
+  if (!answer || typeof answer.text !== "string" || (answer.mode !== "extractive" && answer.mode !== "llm")) throw new Error("The Ask endpoint returned an unexpected response.");
+  const citations = Array.isArray(answer.citations) ? answer.citations.filter((citation): citation is Citation => Boolean(citation) && typeof citation.path === "string" && typeof citation.startLine === "number" && typeof citation.endLine === "number") : [];
+  return {repoId: "", question, answer: answer.text, citations, hits: [], mode: answer.mode, staleRepos: []};
+}
+
+/**
+ * Asks through the embedding site's own endpoint. Only the question is sent: the portfolio address,
+ * any Ragportfolio credential, and the trusted configuration all live on that site's backend, so
+ * nothing here can be tampered with from the page to reach a different portfolio.
+ */
+export async function askViaProxy(input: {endpoint: string; headers?: Record<string, string>; question: string}): Promise<AskResult> {
+  const headers = new Headers(input.headers);
+  headers.set("Content-Type", "application/json");
+  headers.set("X-Transaction-Id", uuidv7());
+  const response = await fetch(input.endpoint, {method: "POST", headers, body: JSON.stringify({question: input.question})});
+  const text = await response.text();
+  let payload: unknown = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
+  }
+  if (!response.ok) throw new Error(normalizeErrorMessage(payload, response.status));
+  return adaptPublicAnswer(payload, input.question);
+}
+
+/** Asks through whichever transport the widget resolved, so the caller does not branch on mode. */
+export async function askWithTransport(transport: ResolvedTransport, input: {question: string; turnstileToken?: string}): Promise<AskResult> {
+  if (transport.mode === "proxy") return askViaProxy({endpoint: transport.endpoint, headers: transport.headers, question: input.question});
+  const headers = new Headers();
+  headers.set("X-Transaction-Id", uuidv7());
+  const body: Record<string, string> = {question: input.question};
+  if (input.turnstileToken?.trim()) body.turnstileToken = input.turnstileToken.trim();
+  const payload = await requestJson<PublicAnswerPayload>(transport.backendUrl, portfolioPath(transport, "/ask"), {method: "POST", headers, body: JSON.stringify(body)});
+  return adaptPublicAnswer(payload, input.question);
+}
+
+export async function askQuestion(input: AskRequestInput & {transport?: AskTransport}): Promise<AskResult> {
   const headers = new Headers();
   headers.set("X-Transaction-Id", uuidv7());
 
@@ -25,17 +76,8 @@ export async function askQuestion(input: AskRequestInput): Promise<AskResult> {
     question: input.question
   };
 
-  const portfolioSlug = input.portfolioSlug?.trim();
-  const portfolioToken = input.portfolioToken?.trim();
-  if (portfolioSlug && portfolioToken) throw new Error("Choose either portfolioSlug or portfolioToken, not both.");
-  if (portfolioSlug || portfolioToken) {
-    const address = portfolioToken ?? portfolioSlug;
-    if (!address) throw new Error("Choose a portfolioSlug or portfolioToken.");
-    const path = portfolioToken ? `/api/public/portfolios/by-token/${encodeURIComponent(address)}/ask` : `/api/public/portfolios/${encodeURIComponent(address)}/ask`;
-    if (input.turnstileToken?.trim()) body.turnstileToken = input.turnstileToken.trim();
-    const payload = await requestJson<{answer: {text: string; mode: "extractive" | "llm"; citations: Citation[]}}>(input.backendUrl ?? "https://ragportfolio.com", path, {method: "POST", headers, body: JSON.stringify(body)});
-    return {repoId: "", question: input.question, answer: payload.answer.text, citations: payload.answer.citations, hits: [], mode: payload.answer.mode, staleRepos: []};
-  }
+  const transport = resolveTransport({transport: input.transport, backendUrl: input.backendUrl, portfolioSlug: input.portfolioSlug, portfolioToken: input.portfolioToken});
+  if (transport) return askWithTransport(transport, {question: input.question, turnstileToken: input.turnstileToken});
 
   if (input.sourceId) body.sourceId = input.sourceId;
   if (input.repoId) {
