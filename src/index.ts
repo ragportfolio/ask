@@ -1,11 +1,13 @@
 import "./styles.css";
 
 export { AskWidget, AskWidget as RagportfolioAsk } from "./AskWidget";
-export { askQuestion, fetchAppConfig, fetchPortfolioEmbedConfig } from "./client";
+export { askQuestion, askViaProxy, askWithTransport, fetchAppConfig, fetchPortfolioEmbedConfig } from "./client";
+export { resolveTransport, TransportConfigurationError } from "./transport";
 export type {
   AppConfigPayload,
   AskRequestInput,
   AskResult,
+  AskTransport,
   AskTurn,
   AskWidgetAppearance,
   AskWidgetClassNames,
@@ -16,6 +18,7 @@ export type {
   AskWidgetStyles,
   Citation,
   PortfolioEmbedConfig,
+  ResolvedTransport,
   SearchHit,
   StaleRepoWarning
 } from "./types";

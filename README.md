@@ -4,7 +4,10 @@ Embeddable React Ask widget for a Ragportfolio portfolio or legacy `memory` back
 
 Status on 2026-08-11: portfolio targeting, public transport, citations, and code-controlled visual
 customization are merged. The `@ragportfolio/ask` package rename, pull-request build, and
-portfolio-bound Turnstile/origin transport are local.
+portfolio-bound Turnstile/origin transport are local. Dual transport (browser-direct and
+server-proxy) with the server-only `@ragportfolio/ask/server` helper is local and depends on the
+backend `/api/integrations/portfolio-ask` endpoint and owner token lifecycle, which are still in
+progress in `user-worker`.
 The framework-independent custom element and owner-facing embed builder are planned in
 [`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
 
@@ -58,8 +61,111 @@ The token is included in browser source and network requests. Treat it as an obs
 not as an authentication credential. Private and unpublished portfolios cannot be embedded for
 anonymous visitors.
 
+## Transports
+
+There are two ways to reach a portfolio, and they have deliberately different trust models.
+
+**Browser direct** (default) needs no backend from you. The page calls Ragportfolio and proves itself
+with a portfolio-bound Turnstile token; the request is accepted only from a verified origin.
+
+```tsx
+<RagportfolioAsk transport={{mode: "direct", portfolioSlug: "ragportfolio"}} />
+```
+
+**Server proxy** is for sites that already run a backend. The page calls *your* endpoint, and your
+backend adds a Ragportfolio API token. No Turnstile is involved, because your backend is the
+authenticated party rather than the visitor.
+
+```tsx
+<RagportfolioAsk transport={{mode: "proxy", endpoint: "/api/portfolio-ask"}} />
+```
+
+In proxy mode the component sends only `{"question":"..."}`. It loads no embed config, renders no
+challenge, and sends no portfolio address — the address lives in your backend, so a visitor cannot
+rewrite it to point somewhere else.
+
+`portfolioSlug` and `portfolioToken` remain supported as shorthand for direct mode.
+
+### The API token is a server credential
+
+**Never put a Ragportfolio API token in the browser.** It resolves one portfolio scope and spends
+that portfolio's allowance with no origin check and no challenge, so a token in page source lets any
+visitor spend your allowance from anywhere.
+
+There is no `apiToken`, `token`, or `secret` prop, and proxy mode refuses an `Authorization`,
+`Proxy-Authorization`, `Cookie`, or `X-Api-Key` header supplied from the page rather than forwarding
+it. A cross-origin proxy endpoint requires `allowAbsoluteEndpoint: true` and https, because a
+relative path cannot send your visitors' questions to a third party and an absolute one can.
+
+**Your proxy still needs its own abuse controls.** Ragportfolio authenticates your integration, not
+the visitor behind it, so an unprotected endpoint is an open door to your portfolio's allowance no
+matter how well the token is stored. Apply a rate limit or bot check of your own.
+
+## Server helper
+
+`@ragportfolio/ask/server` is a separate entry point, built as its own bundle and never re-exported
+by the package root, so it cannot be pulled into a browser build.
+
+### Next.js route handler
+
+```ts
+// app/api/portfolio-ask/route.ts
+import { handlePortfolioAskRequest } from "@ragportfolio/ask/server";
+
+export async function POST(request: Request) {
+  // Apply your own visitor rate limit or bot check here.
+  const result = await handlePortfolioAskRequest(await request.json().catch(() => null), {apiToken: process.env.RAGPORTFOLIO_API_TOKEN!});
+  return Response.json(result.body, {status: result.status});
+}
+```
+
+### Cloudflare Worker or Pages Function
+
+```ts
+// functions/api/portfolio-ask.ts
+import { handlePortfolioAskRequest } from "@ragportfolio/ask/server";
+
+export const onRequestPost: PagesFunction<{RAGPORTFOLIO_API_TOKEN: string}> = async (context) => {
+  const result = await handlePortfolioAskRequest(await context.request.json().catch(() => null), {apiToken: context.env.RAGPORTFOLIO_API_TOKEN});
+  return Response.json(result.body, {status: result.status});
+};
+```
+
+Keep the token in the Worker's secret bindings. Do not put it in Vite values or any generated static
+asset: anything the build inlines ends up readable in the page.
+
+### Express
+
+```ts
+import express from "express";
+import { handlePortfolioAskRequest } from "@ragportfolio/ask/server";
+
+const app = express();
+app.use(express.json({limit: "8kb"}));
+
+app.post("/api/portfolio-ask", async (request, response) => {
+  // Apply your own visitor rate limit or bot check here.
+  const result = await handlePortfolioAskRequest(request.body, {apiToken: process.env.RAGPORTFOLIO_API_TOKEN!});
+  response.status(result.status).json(result.body);
+});
+```
+
+The helper caps a question at 500 characters, returns only an allowlisted `{answer}` or
+`{error: {code, message}}` shape, and never forwards an upstream body or logs the Authorization
+header. A rejected network call is reported as a bounded message, because the failure object can
+carry the request that held the token.
+
+### Token lifecycle
+
+Create tokens from the portfolio's Publishing settings. The full token is shown **once** at creation;
+afterwards only a hint is listed. To rotate: create a new token, update your website secret, then
+revoke the old one.
+
 ## Props
 
+- `transport`: how the widget reaches the portfolio. Either `{mode: "direct", portfolioSlug}`,
+  `{mode: "direct", portfolioToken}`, or `{mode: "proxy", endpoint}`. Mutually exclusive with the
+  `portfolioSlug`/`portfolioToken` shorthand. See [Transports](#transports).
 - `portfolioSlug`: public portfolio address. Mutually exclusive with `portfolioToken`.
 - `portfolioToken`: semi-private share token. Mutually exclusive with `portfolioSlug`.
 - `backendUrl`: optional Ragportfolio API origin; defaults to `https://ragportfolio.com` in
