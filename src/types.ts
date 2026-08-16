@@ -7,6 +7,8 @@ export interface AppConfigPayload {
 }
 
 export interface PortfolioEmbedConfig {
+  /** Owner-authored opening message, or `null` when the portfolio keeps the widget's default. */
+  askEmptyMessage: string | null;
   showCitations: boolean;
   turnstileAction: string;
   turnstileCData: string;
@@ -91,6 +93,7 @@ export interface AskRequestInput {
 
 export interface AskWidgetLabels {
   citations?: ReactNode;
+  /** Overrides the portfolio owner's opening message; omit it to render whatever the owner saved. */
   empty?: ReactNode;
   inputPlaceholder?: string;
   loading?: ReactNode;

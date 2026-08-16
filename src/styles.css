@@ -179,6 +179,7 @@
 }
 
 .ragportfolio-ask__composer {
+  position: relative;
   border-top: 1px solid var(--ragportfolio-ask-border);
   display: grid;
   gap: var(--ragportfolio-ask-composer-gap, 10px);
@@ -186,14 +187,13 @@
 }
 
 .ragportfolio-ask__turnstile {
-  align-items: center;
-  border: 1px solid var(--ragportfolio-ask-border);
-  border-radius: var(--ragportfolio-ask-radius);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 10px;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .ragportfolio-ask__turnstile--verified,
@@ -202,10 +202,25 @@
 }
 
 .ragportfolio-ask__turnstile-label {
-  color: var(--ragportfolio-ask-muted);
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  position: absolute;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+}
+
+.ragportfolio-ask__turnstile-widget {
+  display: grid;
+  justify-items: end;
+}
+
+.ragportfolio-ask__turnstile .ragportfolio-ask__error {
+  max-width: 300px;
+  border: 1px solid var(--ragportfolio-ask-error);
+  border-radius: var(--ragportfolio-ask-radius);
+  background: var(--ragportfolio-ask-warning-bg);
+  padding: 8px 10px;
 }
 
 .ragportfolio-ask__form {

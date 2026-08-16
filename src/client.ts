@@ -2,6 +2,8 @@ import { portfolioPath, resolveTransport } from "./transport";
 import type { AppConfigPayload, AskRequestInput, AskResult, AskTransport, Citation, PortfolioEmbedConfig, ResolvedTransport } from "./types";
 
 const MAX_ERROR_MESSAGE_LENGTH = 280;
+const MAX_ASK_EMPTY_MESSAGE_LENGTH = 200;
+const CONTROL_CHARACTERS = new RegExp("[\\u0000-\\u001f\\u007f]", "gu");
 
 export async function fetchAppConfig(backendUrl: string): Promise<AppConfigPayload> {
   return requestJson<AppConfigPayload>(backendUrl, "/app-config");
@@ -15,7 +17,18 @@ export async function fetchPortfolioEmbedConfig(input: {backendUrl?: string; por
   if (!address) throw new Error("Choose a portfolioSlug or portfolioToken.");
   const path = portfolioToken ? `/api/public/portfolios/by-token/${encodeURIComponent(address)}/embed-config` : `/api/public/portfolios/${encodeURIComponent(address)}/embed-config`;
   const payload = await requestJson<{embed: PortfolioEmbedConfig}>(input.backendUrl ?? "https://ragportfolio.com", path);
-  return payload.embed;
+  return {...payload.embed, askEmptyMessage: normalizedAskEmptyMessage(payload.embed?.askEmptyMessage)};
+}
+
+/**
+ * The owner's opening message is server-validated, but it lands in someone else's page, so the
+ * widget bounds it again rather than trusting whatever the backend returned. Anything unusable
+ * falls back to the widget's own default instead of rendering a blank or oversized thread.
+ */
+function normalizedAskEmptyMessage(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const message = value.replace(CONTROL_CHARACTERS, " ").trim();
+  return message ? message.slice(0, MAX_ASK_EMPTY_MESSAGE_LENGTH) : null;
 }
 
 interface PublicAnswerPayload {
