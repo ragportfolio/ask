@@ -50,7 +50,22 @@ test("loads portfolio-bound Turnstile and citation policy", async () => {
   const config = await fetchPortfolioEmbedConfig({portfolioSlug: " sample-portfolio "});
 
   assert.equal(capturedUrl, "https://ragportfolio.com/api/public/portfolios/sample-portfolio/embed-config");
-  assert.deepEqual(config, {turnstileSiteKey: "site-key", turnstileAction: "portfolio_ask", turnstileCData: "slug_sample-portfolio", showCitations: false});
+  assert.deepEqual(config, {turnstileSiteKey: "site-key", turnstileAction: "portfolio_ask", turnstileCData: "slug_sample-portfolio", showCitations: false, askEmptyMessage: null});
+});
+
+test("carries the owner's opening message and bounds it before it reaches the page", async () => {
+  globalThis.fetch = async () => Response.json({embed: {turnstileSiteKey: null, turnstileAction: "portfolio_ask", turnstileCData: "slug_sample-portfolio", showCitations: true, askEmptyMessage: "  Ask me about the Helios migration.  "}});
+  assert.equal((await fetchPortfolioEmbedConfig({portfolioSlug: "sample-portfolio"})).askEmptyMessage, "Ask me about the Helios migration.");
+
+  globalThis.fetch = async () => Response.json({embed: {turnstileSiteKey: null, turnstileAction: "portfolio_ask", turnstileCData: "slug_sample-portfolio", showCitations: true, askEmptyMessage: `Ask me\nabout ${"anything ".repeat(40)}`}});
+  const bounded = (await fetchPortfolioEmbedConfig({portfolioSlug: "sample-portfolio"})).askEmptyMessage;
+  assert.equal(bounded.length, 200);
+  assert.equal(bounded.startsWith("Ask me about anything"), true);
+
+  for (const askEmptyMessage of ["   ", 42, null, undefined]) {
+    globalThis.fetch = async () => Response.json({embed: {turnstileSiteKey: null, turnstileAction: "portfolio_ask", turnstileCData: "slug_sample-portfolio", showCitations: true, askEmptyMessage}});
+    assert.equal((await fetchPortfolioEmbedConfig({portfolioSlug: "sample-portfolio"})).askEmptyMessage, null);
+  }
 });
 
 test("rejects ambiguous portfolio targeting before sending a request", async () => {

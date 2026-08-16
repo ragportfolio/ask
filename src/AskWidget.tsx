@@ -5,6 +5,12 @@ import { resolveTransport } from "./transport";
 import type { AskResult, AskTurn, AskWidgetAppearance, AskWidgetClassNames, AskWidgetProps, AskWidgetStyles, Citation } from "./types";
 import { useTurnstile } from "./useTurnstile";
 
+/**
+ * Rendered only when neither the host's `labels.empty` nor the portfolio owner's saved opening
+ * message applies, so an embed always has something in an otherwise empty thread.
+ */
+export const DEFAULT_EMPTY_MESSAGE = "Ask a question to get started.";
+
 export function AskWidget({
   adminToken,
   appearance,
@@ -60,6 +66,7 @@ export function AskWidget({
   const [resolvedTurnstileAction, setResolvedTurnstileAction] = useState(turnstileAction ?? "ask");
   const [resolvedTurnstileCData, setResolvedTurnstileCData] = useState<string | undefined>();
   const [portfolioCitationsVisible, setPortfolioCitationsVisible] = useState(true);
+  const [portfolioEmptyMessage, setPortfolioEmptyMessage] = useState<string | null>(null);
   const [isPortfolioConfigLoading, setIsPortfolioConfigLoading] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -80,12 +87,14 @@ export function AskWidget({
   useEffect(() => {
     if (!portfolioMode) {
       setIsPortfolioConfigLoading(false);
+      setPortfolioEmptyMessage(null);
       return;
     }
     let isCancelled = false;
     setIsPortfolioConfigLoading(true);
     setConfigError(null);
     setResolvedTurnstileCData(undefined);
+    setPortfolioEmptyMessage(null);
     if (turnstileSiteKey === undefined) setResolvedTurnstileSiteKey(null);
     const address = activeTransport?.mode === "direct" ? activeTransport.address : null;
     fetchPortfolioEmbedConfig({backendUrl: activeTransport?.mode === "direct" ? activeTransport.backendUrl : resolvedBackendUrl, portfolioSlug: address?.kind === "slug" ? address.value : undefined, portfolioToken: address?.kind === "token" ? address.value : undefined})
@@ -95,6 +104,7 @@ export function AskWidget({
         setResolvedTurnstileAction(turnstileAction ?? config.turnstileAction);
         setResolvedTurnstileCData(config.turnstileCData);
         setPortfolioCitationsVisible(config.showCitations);
+        setPortfolioEmptyMessage(config.askEmptyMessage);
         setConfigError(null);
         setIsPortfolioConfigLoading(false);
       })
@@ -216,7 +226,7 @@ export function AskWidget({
 
       <div id={`${widgetId}-thread`} className={slotClass("ragportfolio-ask__thread", classNames?.thread)} style={styles?.thread} ref={threadRef}>
         {turns.length === 0 ? (
-          <div id={`${widgetId}-empty`} className={slotClass("ragportfolio-ask__empty", classNames?.empty)} style={styles?.empty}>{labels?.empty ?? "Ask a question to get started."}</div>
+          <div id={`${widgetId}-empty`} className={slotClass("ragportfolio-ask__empty", classNames?.empty)} style={styles?.empty}>{labels?.empty ?? portfolioEmptyMessage ?? DEFAULT_EMPTY_MESSAGE}</div>
         ) : null}
 
         {turns.map((turn, turnIndex) => {

@@ -8,6 +8,7 @@ declare global {
         container: HTMLElement,
         options: {
           action?: string;
+          appearance?: "always" | "execute" | "interaction-only";
           callback: (token: string) => void;
           cData?: string;
           "error-callback"?: (errorCode?: string | number) => void;
@@ -54,6 +55,7 @@ export function useTurnstile(siteKey: string | null, action: string, cData?: str
 
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           action,
+          appearance: "interaction-only",
           callback: (nextToken) => {
             setToken(nextToken);
             setError(null);

@@ -1,6 +1,6 @@
 {
   "name": "@ragportfolio/ask",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Embeddable React Ask widget for ragportfolio/memory backends.",
   "type": "module",
   "main": "./dist/ragportfolio-ask.umd.cjs",

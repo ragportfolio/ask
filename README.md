@@ -2,12 +2,12 @@
 
 Embeddable React Ask widget for a Ragportfolio portfolio or legacy `memory` backend.
 
-Status on 2026-08-11: portfolio targeting, public transport, citations, and code-controlled visual
-customization are merged. The `@ragportfolio/ask` package rename, pull-request build, and
-portfolio-bound Turnstile/origin transport are local. Dual transport (browser-direct and
-server-proxy) with the server-only `@ragportfolio/ask/server` helper is local and depends on the
-backend `/api/integrations/portfolio-ask` endpoint and owner token lifecycle, which are still in
-progress in `user-worker`.
+Status on 2026-08-14: portfolio targeting, citations, code-controlled visual customization,
+portfolio-bound Turnstile/origin protection, and dual browser-direct/server-proxy transport are
+merged. The server-only `@ragportfolio/ask/server` helper and the backend API-token lifecycle are
+implemented. Version `0.3.1` is published publicly on npm, renders direct-browser Turnstile with interaction-only appearance, and
+keeps any exceptional interactive challenge out of the widget's document flow. Ragportfolio's
+homepage consumes the package against its verified, public `ragportfolio` portfolio.
 The framework-independent custom element and owner-facing embed builder are planned in
 [`../docs/todo/feature/ASK_WIDGET.MD`](../docs/todo/feature/ASK_WIDGET.MD).
 
@@ -161,6 +161,31 @@ Create tokens from the portfolio's Publishing settings. The full token is shown 
 afterwards only a hint is listed. To rotate: create a new token, update your website secret, then
 revoke the old one.
 
+## Opening message
+
+The line shown in an empty thread, before the first question, has three sources. In order of
+precedence:
+
+1. `labels.empty` in the embedding site's code;
+2. the portfolio owner's **Opening message**, saved in the Ragportfolio dashboard under Website Ask
+   and delivered with the embed config in direct mode;
+3. the component's own `DEFAULT_EMPTY_MESSAGE` ("Ask a question to get started.").
+
+So an owner can rewrite the opening line for every embed of their portfolio without touching the
+website's code, and a site that passes `labels.empty` keeps full control of what it renders.
+
+```tsx
+// Renders whatever the owner saved, or the default when they saved nothing.
+<RagportfolioAsk portfolioSlug="ragportfolio" />
+
+// Always renders this line, whatever the owner saved.
+<RagportfolioAsk portfolioSlug="ragportfolio" labels={{empty: <p>Ask me about the Helios migration.</p>}} />
+```
+
+The owner's message is plain text, capped at 200 characters, and rendered as a React text child, so
+it cannot inject markup into the host page. Proxy mode loads no embed config, so it uses
+`labels.empty` or the default.
+
 ## Props
 
 - `transport`: how the widget reaches the portfolio. Either `{mode: "direct", portfolioSlug}`,
@@ -176,7 +201,8 @@ revoke the old one.
 - `classNames`: additional class names keyed by semantic slot.
 - `styles`: React inline styles keyed by semantic slot.
 - `labels`: title, placeholder, empty state, loading content, citations label, send label, and legacy
-  Turnstile label.
+  Turnstile label. `labels.empty` overrides the owner's saved opening message; see
+  [Opening message](#opening-message).
 - `className`, `style`: customize the widget root after `appearance` is applied.
 - `inputClassName`, `inputStyle`: backwards-compatible input-only customization.
 - `showCitations`: may hide citations client-side. In portfolio mode the owner's server policy is
@@ -189,6 +215,12 @@ revoke the old one.
   normally loads the correct key and portfolio-bound proof configuration automatically.
 - `turnstileAction`: optional development/legacy override; portfolio production mode normally uses
   the server-provided `portfolio_ask` action.
+
+Direct-browser mode requests `appearance: "interaction-only"`, so a Managed site key takes no
+layout space during routine verification and may overlay a challenge only when Cloudflare requires
+interaction. The first-party Ragportfolio production site key instead uses Cloudflare's Invisible
+widget mode, which has no visual footprint at all. Widget mode belongs to the Cloudflare site key;
+the component cannot turn a Managed key into an Invisible key.
 
 Legacy-only props:
 
