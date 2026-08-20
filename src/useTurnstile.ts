@@ -97,6 +97,7 @@ export function useTurnstile(siteKey: string | null, action: string, cData?: str
     error,
     isReady,
     reset() {
+      setError(null);
       setToken(null);
       if (widgetIdRef.current && window.turnstile?.reset) {
         try {
