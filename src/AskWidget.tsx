@@ -24,6 +24,7 @@ export function AskWidget({
   inputStyle,
   labels,
   onError,
+  onReset,
   onResult,
   portfolioSlug,
   portfolioToken,
@@ -220,9 +221,38 @@ export function AskWidget({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }
 
+  function handleReset() {
+    if (isSubmitting || turns.length === 0) return;
+    setTurns([]);
+    setQuestion("");
+    setFormError(null);
+    turnstile.reset();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
+    onReset?.();
+  }
+
   return (
     <section id={widgetId} className={rootClassName} data-theme={theme} style={rootStyle}>
-      {labels?.title ? <header id={`${widgetId}-header`} className={slotClass("ragportfolio-ask__header", classNames?.header)} style={styles?.header}>{labels.title}</header> : null}
+      {labels?.title || turns.length > 0 ? (
+        <header id={`${widgetId}-header`} className={slotClass("ragportfolio-ask__header", classNames?.header)} style={styles?.header}>
+          {labels?.title ? <div id={`${widgetId}-title`}>{labels.title}</div> : null}
+          {turns.length > 0 ? (
+            <button id={`${widgetId}-reset`} type="button" className={slotClass("ragportfolio-ask__reset", classNames?.reset)} style={styles?.reset} onClick={handleReset} disabled={isSubmitting} aria-label={labels?.resetLabel ?? "Start a new conversation"} title={labels?.resetLabel ?? "Start a new conversation"}>
+              {labels?.reset ?? (
+                <svg id={`${widgetId}-reset-icon`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path id={`${widgetId}-reset-icon-handle`} d="m16 22-1-4" />
+                  <path id={`${widgetId}-reset-icon-brush`} d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1" />
+                  <path id={`${widgetId}-reset-icon-head`} d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z" />
+                  <path id={`${widgetId}-reset-icon-bristle`} d="m8 22 1-4" />
+                </svg>
+              )}
+            </button>
+          ) : null}
+        </header>
+      ) : null}
 
       <div id={`${widgetId}-thread`} className={slotClass("ragportfolio-ask__thread", classNames?.thread)} style={styles?.thread} ref={threadRef}>
         {turns.length === 0 ? (
@@ -455,6 +485,7 @@ function appearanceStyle(appearance?: AskWidgetAppearance): AskWidgetVariableSty
     "--ragportfolio-ask-min-height": appearance?.minHeight,
     "--ragportfolio-ask-muted": appearance?.mutedColor,
     "--ragportfolio-ask-padding": appearance?.padding,
+    "--ragportfolio-ask-reset-size": appearance?.resetButtonSize,
     "--ragportfolio-ask-radius": appearance?.borderRadius,
     "--ragportfolio-ask-shadow": appearance?.shadow,
     "--ragportfolio-ask-send-size": appearance?.sendButtonSize,

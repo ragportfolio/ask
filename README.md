@@ -201,7 +201,8 @@ it cannot inject markup into the host page. Proxy mode loads no embed config, so
 - `classNames`: additional class names keyed by semantic slot.
 - `styles`: React inline styles keyed by semantic slot.
 - `labels`: title, placeholder, empty state, loading content, citations label, send label, and legacy
-  Turnstile label. `labels.empty` overrides the owner's saved opening message; see
+  Turnstile label. It also accepts `reset` to replace the default brush icon and `resetLabel` for
+  the button's accessible name and tooltip. `labels.empty` overrides the owner's saved opening message; see
   [Opening message](#opening-message).
 - `className`, `style`: customize the widget root after `appearance` is applied.
 - `inputClassName`, `inputStyle`: backwards-compatible input-only customization.
@@ -211,6 +212,7 @@ it cannot inject markup into the host page. Proxy mode loads no embed config, so
   ancestor.
 - `onResult`: callback after a successful response.
 - `onError`: callback after a failed response.
+- `onReset`: callback after the visitor clears the displayed conversation.
 - `turnstileSiteKey`: optional explicit public Cloudflare Turnstile site key. Portfolio mode
   normally loads the correct key and portfolio-bound proof configuration automatically.
 - `turnstileAction`: optional development/legacy override; portfolio production mode normally uses
@@ -221,6 +223,17 @@ layout space during routine verification and may overlay a challenge only when C
 interaction. The first-party Ragportfolio production site key instead uses Cloudflare's Invisible
 widget mode, which has no visual footprint at all. Widget mode belongs to the Cloudflare site key;
 the component cannot turn a Managed key into an Invisible key.
+
+## Starting a new conversation
+
+After the first question appears, the header shows an icon-only **Start a new conversation** button.
+It clears the displayed exchanges, input, and form error, resets Turnstile, restores the configured
+opening message, and returns keyboard focus to the input. Ragportfolio requests are already
+stateless: only the current question is sent, never the displayed transcript. Clearing therefore
+starts a visually and operationally independent conversation without a backend memory reset.
+
+Customize the control with `labels.reset`, `labels.resetLabel`, `classNames.reset`, `styles.reset`,
+`appearance.resetButtonSize`, and `onReset`.
 
 Legacy-only props:
 
@@ -270,9 +283,10 @@ The `appearance` prop is the typed equivalent for the main design tokens. Use `c
 />
 ```
 
-Supported slot keys are `root`, `header`, `thread`, `empty`, `exchange`, `question`, `loading`,
-`response`, `warning`, `answer`, `citations`, `composer`, `turnstile`, `error`, `form`, `input`, and
-`send`. Bundled `ragportfolio-ask` BEM class names remain stable for stylesheet overrides.
+Supported slot keys are `root`, `header`, `reset`, `thread`, `empty`, `exchange`, `question`,
+`loading`, `response`, `warning`, `answer`, `citations`, `composer`, `turnstile`, `error`, `form`,
+`input`, and `send`. Bundled `ragportfolio-ask` BEM class names remain stable for stylesheet
+overrides.
 
 ## Backend Requirements
 

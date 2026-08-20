@@ -97,12 +97,15 @@ export interface AskWidgetLabels {
   empty?: ReactNode;
   inputPlaceholder?: string;
   loading?: ReactNode;
+  /** Replaces the default brush icon inside the conversation reset button. */
+  reset?: ReactNode;
+  resetLabel?: string;
   sendLabel?: string;
   title?: ReactNode;
   turnstileLabel?: ReactNode;
 }
 
-export type AskWidgetSlot = "answer" | "citations" | "composer" | "empty" | "error" | "exchange" | "form" | "header" | "input" | "loading" | "question" | "response" | "root" | "send" | "thread" | "turnstile" | "warning";
+export type AskWidgetSlot = "answer" | "citations" | "composer" | "empty" | "error" | "exchange" | "form" | "header" | "input" | "loading" | "question" | "reset" | "response" | "root" | "send" | "thread" | "turnstile" | "warning";
 
 export type AskWidgetClassNames = Partial<Record<AskWidgetSlot, string>>;
 export type AskWidgetStyles = Partial<Record<AskWidgetSlot, CSSProperties>>;
@@ -129,6 +132,7 @@ export interface AskWidgetAppearance {
   minHeight?: string;
   mutedColor?: string;
   padding?: string;
+  resetButtonSize?: string;
   shadow?: string;
   sendButtonSize?: string;
   textColor?: string;
@@ -155,6 +159,7 @@ export interface AskWidgetProps {
   inputStyle?: CSSProperties;
   labels?: AskWidgetLabels;
   onError?: (error: Error, question: string) => void;
+  onReset?: () => void;
   onResult?: (result: AskResult) => void;
   portfolioSlug?: string;
   portfolioToken?: string;

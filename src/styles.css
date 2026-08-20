@@ -57,10 +57,50 @@
 }
 
 .ragportfolio-ask__header {
+  align-items: center;
   border-bottom: 1px solid var(--ragportfolio-ask-border);
+  display: flex;
   font-size: 0.95rem;
   font-weight: 700;
+  gap: 10px;
   padding: 0 2px 10px;
+}
+
+.ragportfolio-ask__reset {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ragportfolio-ask-radius);
+  color: var(--ragportfolio-ask-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: var(--ragportfolio-ask-reset-size, 32px);
+  justify-content: center;
+  margin-left: auto;
+  padding: 0;
+  width: var(--ragportfolio-ask-reset-size, 32px);
+}
+
+.ragportfolio-ask__reset:hover:not(:disabled) {
+  background: var(--ragportfolio-ask-assistant-bg);
+  border-color: var(--ragportfolio-ask-border);
+  color: var(--ragportfolio-ask-text);
+}
+
+.ragportfolio-ask__reset:focus-visible {
+  box-shadow: 0 0 0 3px var(--ragportfolio-ask-focus-ring);
+  outline: none;
+}
+
+.ragportfolio-ask__reset:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ragportfolio-ask__reset svg {
+  height: 18px;
+  width: 18px;
 }
 
 .ragportfolio-ask__thread {
